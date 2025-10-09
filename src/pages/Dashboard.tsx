@@ -115,8 +115,8 @@ const Dashboard = () => {
                   Gerar relatórios
                 </li>
               </ul>
-              <Button className="w-full" disabled>
-                Em breve
+              <Button className="w-full" onClick={() => navigate("/professor")}>
+                Acessar
               </Button>
             </CardContent>
           </Card>
