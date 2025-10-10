@@ -20,6 +20,24 @@ interface Grade {
   observations: string | null;
   student_id: string;
   class_subject_id: string;
+  profiles?: { full_name: string };
+  class_subjects?: {
+    classes?: { name: string };
+    subjects?: { name: string };
+  };
+}
+
+interface ClassSubject {
+  id: string;
+  class_id: string;
+  subject_id: string;
+  classes?: { name: string };
+  subjects?: { name: string };
+}
+
+interface Student {
+  id: string;
+  full_name: string;
 }
 
 const Notas = () => {
@@ -27,9 +45,21 @@ const Notas = () => {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [formData, setFormData] = useState({
+    student_id: "",
+    class_subject_id: "",
+    grade_value: "",
+    grade_type: "prova",
+    grade_date: new Date().toISOString().split("T")[0],
+    observations: "",
+  });
 
   useEffect(() => {
     fetchGrades();
+    fetchClassSubjects();
+    fetchStudents();
   }, []);
 
   const fetchGrades = async () => {
@@ -44,8 +74,118 @@ const Notas = () => {
         description: error.message,
         variant: "destructive",
       });
+      setLoading(false);
+      return;
+    }
+
+    const gradesWithDetails = await Promise.all(
+      (data || []).map(async (grade) => {
+        const [studentData, classSubjectData] = await Promise.all([
+          supabase.from("profiles").select("full_name").eq("id", grade.student_id).single(),
+          supabase.from("class_subjects")
+            .select("class_id, subject_id")
+            .eq("id", grade.class_subject_id)
+            .single()
+        ]);
+
+        let classData = null;
+        let subjectData = null;
+
+        if (classSubjectData.data) {
+          const [classResult, subjectResult] = await Promise.all([
+            supabase.from("classes").select("name").eq("id", classSubjectData.data.class_id).single(),
+            supabase.from("subjects").select("name").eq("id", classSubjectData.data.subject_id).single()
+          ]);
+          classData = classResult.data;
+          subjectData = subjectResult.data;
+        }
+
+        return {
+          ...grade,
+          profiles: studentData.data,
+          class_subjects: {
+            classes: classData,
+            subjects: subjectData,
+          },
+        };
+      })
+    );
+
+    setGrades(gradesWithDetails as any);
+    setLoading(false);
+  };
+
+  const fetchClassSubjects = async () => {
+    const { data, error } = await supabase
+      .from("class_subjects")
+      .select(`
+        id,
+        class_id,
+        subject_id,
+        classes:class_id(name),
+        subjects:subject_id(name)
+      `);
+
+    if (error) {
+      toast({
+        title: "Erro ao carregar turmas/matérias",
+        description: error.message,
+        variant: "destructive",
+      });
     } else {
-      setGrades(data || []);
+      setClassSubjects(data || []);
+    }
+  };
+
+  const fetchStudents = async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name");
+
+    if (error) {
+      toast({
+        title: "Erro ao carregar alunos",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setStudents(data || []);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { error } = await supabase.from("grades").insert({
+      student_id: formData.student_id,
+      class_subject_id: formData.class_subject_id,
+      grade_value: parseFloat(formData.grade_value),
+      grade_type: formData.grade_type,
+      grade_date: formData.grade_date,
+      observations: formData.observations || null,
+    });
+
+    if (error) {
+      toast({
+        title: "Erro ao lançar nota",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Nota lançada com sucesso",
+      });
+      setFormData({
+        student_id: "",
+        class_subject_id: "",
+        grade_value: "",
+        grade_type: "prova",
+        grade_date: new Date().toISOString().split("T")[0],
+        observations: "",
+      });
+      setOpen(false);
+      fetchGrades();
     }
     setLoading(false);
   };
@@ -84,11 +224,119 @@ const Notas = () => {
                   Lançar Nota
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Lançar Nova Nota</DialogTitle>
-                  <DialogDescription>Sistema de lançamento será implementado em breve</DialogDescription>
+                  <DialogDescription>Preencha os dados da nota</DialogDescription>
                 </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="student">Aluno</Label>
+                    <Select
+                      value={formData.student_id}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, student_id: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um aluno" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {students.map((student) => (
+                          <SelectItem key={student.id} value={student.id}>
+                            {student.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="class_subject">Turma/Matéria</Label>
+                    <Select
+                      value={formData.class_subject_id}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, class_subject_id: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione turma/matéria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classSubjects.map((cs) => (
+                          <SelectItem key={cs.id} value={cs.id}>
+                            {cs.classes?.name} - {cs.subjects?.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grade_type">Tipo de Avaliação</Label>
+                    <Select
+                      value={formData.grade_type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, grade_type: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="prova">Prova</SelectItem>
+                        <SelectItem value="trabalho">Trabalho</SelectItem>
+                        <SelectItem value="participacao">Participação</SelectItem>
+                        <SelectItem value="projeto">Projeto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grade_value">Nota</Label>
+                    <Input
+                      id="grade_value"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="10"
+                      value={formData.grade_value}
+                      onChange={(e) =>
+                        setFormData({ ...formData, grade_value: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="grade_date">Data</Label>
+                    <Input
+                      id="grade_date"
+                      type="date"
+                      value={formData.grade_date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, grade_date: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="observations">Observações</Label>
+                    <Textarea
+                      id="observations"
+                      value={formData.observations}
+                      onChange={(e) =>
+                        setFormData({ ...formData, observations: e.target.value })
+                      }
+                      placeholder="Observações opcionais"
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    Lançar Nota
+                  </Button>
+                </form>
               </DialogContent>
             </Dialog>
           </CardHeader>
@@ -107,9 +355,15 @@ const Notas = () => {
               <TableBody>
                 {grades.map((grade) => (
                   <TableRow key={grade.id}>
-                    <TableCell className="font-medium">-</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
+                    <TableCell className="font-medium">
+                      {grade.profiles?.full_name || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {grade.class_subjects?.classes?.name || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {grade.class_subjects?.subjects?.name || "-"}
+                    </TableCell>
                     <TableCell className="capitalize">{grade.grade_type}</TableCell>
                     <TableCell>{grade.grade_value.toFixed(2)}</TableCell>
                     <TableCell>{new Date(grade.grade_date).toLocaleDateString()}</TableCell>

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Class {
@@ -75,6 +75,23 @@ const Turmas = () => {
       });
       setOpen(false);
       setFormData({ name: "", year: new Date().getFullYear(), semester: 1 });
+      fetchClasses();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("classes").delete().eq("id", id);
+    
+    if (error) {
+      toast({
+        title: "Erro ao excluir turma",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Turma excluída com sucesso",
+      });
       fetchClasses();
     }
   };
@@ -165,6 +182,7 @@ const Turmas = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead>Ano</TableHead>
                   <TableHead>Semestre</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -173,11 +191,20 @@ const Turmas = () => {
                     <TableCell className="font-medium">{classItem.name}</TableCell>
                     <TableCell>{classItem.year}</TableCell>
                     <TableCell>{classItem.semester}º Semestre</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(classItem.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {classes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
                       Nenhuma turma cadastrada
                     </TableCell>
                   </TableRow>

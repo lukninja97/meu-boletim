@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Subject {
@@ -72,6 +72,23 @@ const Materias = () => {
       });
       setOpen(false);
       setFormData({ name: "", code: "", description: "" });
+      fetchSubjects();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("subjects").delete().eq("id", id);
+    
+    if (error) {
+      toast({
+        title: "Erro ao excluir matéria",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Matéria excluída com sucesso",
+      });
       fetchSubjects();
     }
   };
@@ -154,6 +171,7 @@ const Materias = () => {
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -162,11 +180,20 @@ const Materias = () => {
                     <TableCell className="font-medium">{subject.code}</TableCell>
                     <TableCell>{subject.name}</TableCell>
                     <TableCell className="text-muted-foreground">{subject.description || "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(subject.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {subjects.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
                       Nenhuma matéria cadastrada
                     </TableCell>
                   </TableRow>
