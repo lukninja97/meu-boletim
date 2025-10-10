@@ -37,7 +37,7 @@ const Auth = () => {
         options: {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
-            name: name,
+            full_name: name,
           },
         },
       });
