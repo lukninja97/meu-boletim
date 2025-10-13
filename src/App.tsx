@@ -12,6 +12,10 @@ import Turmas from "./pages/professor/Turmas";
 import Materias from "./pages/professor/Materias";
 import Notas from "./pages/professor/Notas";
 import Presenca from "./pages/professor/Presenca";
+import AlunoDashboard from "./pages/aluno/AlunoDashboard";
+import MinhasTurmas from "./pages/aluno/MinhasTurmas";
+import MinhasNotas from "./pages/aluno/MinhasNotas";
+import MinhaFrequencia from "./pages/aluno/MinhaFrequencia";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +34,10 @@ const App = () => (
           <Route path="/professor/materias" element={<Materias />} />
           <Route path="/professor/notas" element={<Notas />} />
           <Route path="/professor/presenca" element={<Presenca />} />
+          <Route path="/aluno" element={<AlunoDashboard />} />
+          <Route path="/aluno/turmas" element={<MinhasTurmas />} />
+          <Route path="/aluno/notas" element={<MinhasNotas />} />
+          <Route path="/aluno/frequencia" element={<MinhaFrequencia />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -152,8 +152,8 @@ const Dashboard = () => {
                   Download de boletins
                 </li>
               </ul>
-              <Button variant="secondary" className="w-full" disabled>
-                Em breve
+              <Button variant="secondary" className="w-full" onClick={() => navigate("/aluno")}>
+                Acessar
               </Button>
             </CardContent>
           </Card>
