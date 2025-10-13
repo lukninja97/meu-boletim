@@ -17,9 +17,28 @@ const Auth = () => {
   const [name, setName] = useState("");
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        navigate("/");
+        // Verificar role do usuário e redirecionar para área apropriada
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id);
+
+        if (roles && roles.length > 0) {
+          const isProfessor = roles.some(r => r.role === "professor");
+          const isAluno = roles.some(r => r.role === "aluno");
+
+          if (isProfessor && !isAluno) {
+            navigate("/professor");
+          } else if (isAluno && !isProfessor) {
+            navigate("/aluno");
+          } else {
+            navigate("/dashboard");
+          }
+        } else {
+          navigate("/dashboard");
+        }
       }
     });
 
@@ -60,12 +79,33 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
+
+      // Verificar role do usuário e redirecionar
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id);
+
+      if (roles && roles.length > 0) {
+        const isProfessor = roles.some(r => r.role === "professor");
+        const isAluno = roles.some(r => r.role === "aluno");
+
+        if (isProfessor && !isAluno) {
+          navigate("/professor");
+        } else if (isAluno && !isProfessor) {
+          navigate("/aluno");
+        } else {
+          navigate("/dashboard");
+        }
+      } else {
+        navigate("/dashboard");
+      }
 
       toast.success("Login realizado com sucesso!");
     } catch (error: any) {

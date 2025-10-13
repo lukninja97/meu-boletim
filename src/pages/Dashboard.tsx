@@ -23,10 +23,28 @@ const Dashboard = () => {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (!session) {
         navigate("/auth");
+      } else {
+        // Verificar role e redirecionar se tiver apenas uma
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id);
+
+        if (roles && roles.length > 0) {
+          const isProfessor = roles.some(r => r.role === "professor");
+          const isAluno = roles.some(r => r.role === "aluno");
+
+          // Redirecionar apenas se tiver apenas uma role
+          if (isProfessor && !isAluno) {
+            navigate("/professor");
+          } else if (isAluno && !isProfessor) {
+            navigate("/aluno");
+          }
+        }
       }
       setLoading(false);
     });
