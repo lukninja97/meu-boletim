@@ -32,78 +32,50 @@ const Alunos = () => {
   }, []);
 
   const fetchStudents = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, user_roles!inner(role)")
-      .eq("user_roles.role", "aluno")
-      .order("full_name", { ascending: true });
+    try {
+      const { data, error } = await supabase.functions.invoke('list-students');
 
-    if (error) {
+      if (error) {
+        console.error('Error fetching students:', error);
+        toast({
+          title: "Erro ao carregar alunos",
+          description: error.message,
+          variant: "destructive",
+        });
+        setStudents([]);
+      } else {
+        setStudents(data.students || []);
+      }
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
       toast({
         title: "Erro ao carregar alunos",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      // Buscar emails dos usuários
-      const studentsWithEmail = await Promise.all(
-        (data || []).map(async (student) => {
-          const { data: userData } = await supabase.auth.admin.getUserById(student.id);
-          return {
-            ...student,
-            email: userData.user?.email,
-          };
-        })
-      );
-      setStudents(studentsWithEmail as Student[]);
+      setStudents([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.full_name,
-          },
-          emailRedirectTo: `${window.location.origin}/`,
+      const { data, error } = await supabase.functions.invoke('create-student', {
+        body: {
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name,
         },
       });
 
-      if (authError) {
+      if (error) {
+        console.error('Error creating student:', error);
         toast({
           title: "Erro ao criar aluno",
-          description: authError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!authData.user) {
-        toast({
-          title: "Erro ao criar aluno",
-          description: "Não foi possível criar o usuário",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Atribuir role de aluno
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: authData.user.id,
-        role: "aluno",
-      });
-
-      if (roleError) {
-        toast({
-          title: "Erro ao atribuir perfil de aluno",
-          description: roleError.message,
+          description: error.message,
           variant: "destructive",
         });
         return;
@@ -118,6 +90,7 @@ const Alunos = () => {
       setFormData({ full_name: "", email: "", password: "" });
       fetchStudents();
     } catch (error: any) {
+      console.error('Unexpected error:', error);
       toast({
         title: "Erro ao cadastrar aluno",
         description: error.message,
@@ -127,19 +100,35 @@ const Alunos = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.auth.admin.deleteUser(id);
+    if (!confirm('Tem certeza que deseja excluir este aluno?')) {
+      return;
+    }
 
-    if (error) {
+    try {
+      const { error } = await supabase.functions.invoke('delete-student', {
+        body: { user_id: id },
+      });
+
+      if (error) {
+        console.error('Error deleting student:', error);
+        toast({
+          title: "Erro ao excluir aluno",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Aluno excluído com sucesso",
+        });
+        fetchStudents();
+      }
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
       toast({
         title: "Erro ao excluir aluno",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Aluno excluído com sucesso",
-      });
-      fetchStudents();
     }
   };
 
