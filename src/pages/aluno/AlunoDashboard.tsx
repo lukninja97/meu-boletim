@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, BookOpen, GraduationCap, CalendarCheck, ClipboardList } from "lucide-react";
+import { LogOut, BookOpen, GraduationCap, CalendarCheck, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 const AlunoDashboard = () => {
@@ -41,6 +41,12 @@ const AlunoDashboard = () => {
     );
   }
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+    toast.success("Logout realizado com sucesso!");
+  };
+
   const menuItems = [
     {
       title: "Minhas Turmas",
@@ -69,9 +75,9 @@ const AlunoDashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-2">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
+          <Button variant="ghost" onClick={handleLogout} className="mb-2">
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
           </Button>
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-xl">
