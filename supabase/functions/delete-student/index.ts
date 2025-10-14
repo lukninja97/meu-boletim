@@ -22,18 +22,19 @@ Deno.serve(async (req) => {
       }
     )
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
+    // Get JWT from Authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
 
-    // Verify the requesting user is a professor
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    const jwt = authHeader.replace('Bearer ', '')
+
+    // Verify JWT and get user using admin client
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(jwt)
     
     if (userError || !user) {
       console.error('User authentication failed:', userError)
@@ -43,7 +44,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { data: roleData } = await supabaseClient
+    // Verify the requesting user is a professor
+    const { data: roleData } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
