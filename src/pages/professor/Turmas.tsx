@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Class {
@@ -16,6 +16,17 @@ interface Class {
   name: string;
   year: number;
   semester: number;
+}
+
+interface Student {
+  id: string;
+  full_name: string;
+}
+
+interface Enrollment {
+  id: string;
+  student_id: string;
+  profiles: Student;
 }
 
 const Turmas = () => {
@@ -28,6 +39,10 @@ const Turmas = () => {
     year: new Date().getFullYear(),
     semester: 1,
   });
+  const [enrollmentOpen, setEnrollmentOpen] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
+  const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
+  const [enrolledStudents, setEnrolledStudents] = useState<Enrollment[]>([]);
 
   useEffect(() => {
     fetchClasses();
@@ -93,6 +108,115 @@ const Turmas = () => {
         title: "Turma excluída com sucesso",
       });
       fetchClasses();
+    }
+  };
+
+  const fetchEnrollmentData = async (classId: string) => {
+    // Buscar alunos matriculados
+    const { data: enrollments, error: enrollError } = await supabase
+      .from("enrollments")
+      .select("id, student_id")
+      .eq("class_id", classId);
+
+    if (enrollError) {
+      toast({
+        title: "Erro ao carregar matrículas",
+        description: enrollError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Buscar dados dos alunos matriculados
+    const enrolledWithProfiles = await Promise.all(
+      (enrollments || []).map(async (enrollment) => {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .eq("id", enrollment.student_id)
+          .single();
+        
+        return {
+          ...enrollment,
+          profiles: profile as Student,
+        };
+      })
+    );
+
+    setEnrolledStudents(enrolledWithProfiles as Enrollment[]);
+
+    // Buscar todos os alunos com role 'aluno'
+    const { data: allStudents, error: studentsError } = await supabase
+      .from("profiles")
+      .select("id, full_name, user_roles!inner(role)")
+      .eq("user_roles.role", "aluno");
+
+    if (studentsError) {
+      toast({
+        title: "Erro ao carregar alunos",
+        description: studentsError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Filtrar alunos que não estão matriculados
+    const enrolledIds = enrollments?.map(e => e.student_id) || [];
+    const available = (allStudents || []).filter(
+      student => !enrolledIds.includes(student.id)
+    );
+
+    setAvailableStudents(available as Student[]);
+  };
+
+  const handleOpenEnrollment = async (classItem: Class) => {
+    setSelectedClass(classItem);
+    await fetchEnrollmentData(classItem.id);
+    setEnrollmentOpen(true);
+  };
+
+  const handleEnroll = async (studentId: string) => {
+    if (!selectedClass) return;
+
+    const { error } = await supabase.from("enrollments").insert({
+      student_id: studentId,
+      class_id: selectedClass.id,
+      status: "active",
+    });
+
+    if (error) {
+      toast({
+        title: "Erro ao matricular aluno",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Aluno matriculado com sucesso",
+      });
+      fetchEnrollmentData(selectedClass.id);
+    }
+  };
+
+  const handleUnenroll = async (enrollmentId: string) => {
+    if (!selectedClass) return;
+
+    const { error } = await supabase
+      .from("enrollments")
+      .delete()
+      .eq("id", enrollmentId);
+
+    if (error) {
+      toast({
+        title: "Erro ao remover matrícula",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Matrícula removida com sucesso",
+      });
+      fetchEnrollmentData(selectedClass.id);
     }
   };
 
@@ -182,6 +306,7 @@ const Turmas = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead>Ano</TableHead>
                   <TableHead>Semestre</TableHead>
+                  <TableHead>Alunos</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -191,6 +316,16 @@ const Turmas = () => {
                     <TableCell className="font-medium">{classItem.name}</TableCell>
                     <TableCell>{classItem.year}</TableCell>
                     <TableCell>{classItem.semester}º Semestre</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenEnrollment(classItem)}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Gerenciar
+                      </Button>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
@@ -204,7 +339,7 @@ const Turmas = () => {
                 ))}
                 {classes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       Nenhuma turma cadastrada
                     </TableCell>
                   </TableRow>
@@ -213,6 +348,64 @@ const Turmas = () => {
             </Table>
           </CardContent>
         </Card>
+
+        <Dialog open={enrollmentOpen} onOpenChange={setEnrollmentOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Gerenciar Alunos - {selectedClass?.name}</DialogTitle>
+              <DialogDescription>
+                Adicione ou remova alunos desta turma
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold mb-3">Alunos Disponíveis</h3>
+                <div className="space-y-2">
+                  {availableStudents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum aluno disponível</p>
+                  ) : (
+                    availableStudents.map((student) => (
+                      <div key={student.id} className="flex items-center justify-between p-2 border rounded">
+                        <span className="text-sm">{student.full_name}</span>
+                        <Button
+                          size="sm"
+                          onClick={() => handleEnroll(student.id)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Adicionar
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Alunos Matriculados</h3>
+                <div className="space-y-2">
+                  {enrolledStudents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum aluno matriculado</p>
+                  ) : (
+                    enrolledStudents.map((enrollment) => (
+                      <div key={enrollment.id} className="flex items-center justify-between p-2 border rounded">
+                        <span className="text-sm">{enrollment.profiles.full_name}</span>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleUnenroll(enrollment.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remover
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
