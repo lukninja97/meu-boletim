@@ -118,13 +118,7 @@ const Notas = () => {
   const fetchClassSubjects = async () => {
     const { data, error } = await supabase
       .from("class_subjects")
-      .select(`
-        id,
-        class_id,
-        subject_id,
-        classes:class_id(name),
-        subjects:subject_id(name)
-      `);
+      .select("id, class_id, subject_id");
 
     if (error) {
       toast({
@@ -132,9 +126,25 @@ const Notas = () => {
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      setClassSubjects(data || []);
+      return;
     }
+
+    const classSubjectsWithDetails = await Promise.all(
+      (data || []).map(async (cs) => {
+        const [classData, subjectData] = await Promise.all([
+          supabase.from("classes").select("name").eq("id", cs.class_id).single(),
+          supabase.from("subjects").select("name").eq("id", cs.subject_id).single()
+        ]);
+
+        return {
+          ...cs,
+          classes: classData.data,
+          subjects: subjectData.data,
+        };
+      })
+    );
+
+    setClassSubjects(classSubjectsWithDetails as any);
   };
 
   const fetchStudents = async () => {
