@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Users, GraduationCap, ClipboardList, LogOut } from "lucide-react";
+import { BookOpen, Users, GraduationCap, ClipboardList, LogOut, UserPlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const ProfessorDashboard = () => {
@@ -65,6 +65,19 @@ const ProfessorDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/professor/alunos")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-primary" />
+                Alunos
+              </CardTitle>
+              <CardDescription>Gerenciar alunos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Cadastre e gerencie alunos</p>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/professor/turmas")}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

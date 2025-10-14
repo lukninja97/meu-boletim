@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import ProfessorDashboard from "./pages/professor/ProfessorDashboard";
+import Alunos from "./pages/professor/Alunos";
 import Turmas from "./pages/professor/Turmas";
 import Materias from "./pages/professor/Materias";
 import Notas from "./pages/professor/Notas";
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/professor" element={<ProfessorDashboard />} />
+          <Route path="/professor/alunos" element={<Alunos />} />
           <Route path="/professor/turmas" element={<Turmas />} />
           <Route path="/professor/materias" element={<Materias />} />
           <Route path="/professor/notas" element={<Notas />} />
