@@ -73,9 +73,16 @@ const Alunos = () => {
 
       if (error) {
         console.error('Error creating student:', error);
+        
+        // Tratamento específico para email duplicado
+        const errorMessage = error.message.toLowerCase().includes('already registered') || 
+                            error.message.toLowerCase().includes('email') 
+          ? "Email já cadastrado. Use outro endereço."
+          : error.message;
+        
         toast({
           title: "Erro ao criar aluno",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
         return;

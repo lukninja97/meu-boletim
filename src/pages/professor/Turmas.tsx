@@ -145,15 +145,36 @@ const Turmas = () => {
 
     setEnrolledStudents(enrolledWithProfiles as Enrollment[]);
 
-    // Buscar todos os alunos com role 'aluno'
+    // Buscar todos os alunos: primeiro buscar IDs na user_roles, depois profiles
+    const { data: alunoRoles, error: rolesError } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "aluno");
+
+    if (rolesError) {
+      toast({
+        title: "Erro ao carregar alunos",
+        description: rolesError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const alunoIds = (alunoRoles || []).map(r => r.user_id);
+    
+    if (alunoIds.length === 0) {
+      setAvailableStudents([]);
+      return;
+    }
+
     const { data: allStudents, error: studentsError } = await supabase
       .from("profiles")
-      .select("id, full_name, user_roles!inner(role)")
-      .eq("user_roles.role", "aluno");
+      .select("id, full_name")
+      .in("id", alunoIds);
 
     if (studentsError) {
       toast({
-        title: "Erro ao carregar alunos",
+        title: "Erro ao carregar perfis",
         description: studentsError.message,
         variant: "destructive",
       });
@@ -166,7 +187,7 @@ const Turmas = () => {
       student => !enrolledIds.includes(student.id)
     );
 
-    setAvailableStudents(available as Student[]);
+    setAvailableStudents(available);
   };
 
   const handleOpenEnrollment = async (classItem: Class) => {
