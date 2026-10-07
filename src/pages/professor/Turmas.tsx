@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Users, BookOpen } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
 interface Class {
@@ -16,7 +18,10 @@ interface Class {
   name: string;
   year: number;
   semester: number;
+  course: string | null;
 }
+
+interface Subject { id: string; name: string; code: string; }
 
 interface Student {
   id: string;
@@ -38,7 +43,14 @@ const Turmas = () => {
     name: "",
     year: new Date().getFullYear(),
     semester: 1,
+    course: "",
   });
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classSubjects, setClassSubjects] = useState<{ id: string; class_id: string; subject_id: string }[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [subjectsOpen, setSubjectsOpen] = useState(false);
+  const [subjectsClass, setSubjectsClass] = useState<Class | null>(null);
+  const [editSubjects, setEditSubjects] = useState<string[]>([]);
   const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
@@ -61,8 +73,14 @@ const Turmas = () => {
         variant: "destructive",
       });
     } else {
-      setClasses(data || []);
+      setClasses((data as Class[]) || []);
     }
+    const [{ data: subs }, { data: cs }] = await Promise.all([
+      supabase.from("subjects").select("id, name, code").order("name"),
+      supabase.from("class_subjects").select("id, class_id, subject_id"),
+    ]);
+    setSubjects(subs || []);
+    setClassSubjects(cs || []);
     setLoading(false);
   };
 
@@ -71,12 +89,20 @@ const Turmas = () => {
 
     const { data: { user } } = await supabase.auth.getUser();
     
-    const { error } = await supabase.from("classes").insert({
+    const { data: created, error } = await supabase.from("classes").insert({
       name: formData.name,
       year: formData.year,
       semester: formData.semester,
+      course: formData.course || null,
       teacher_id: user?.id,
-    });
+    }).select("id").single();
+
+    if (!error && created && selectedSubjects.length > 0) {
+      const { error: csError } = await supabase.from("class_subjects").insert(
+        selectedSubjects.map((sid) => ({ class_id: created.id, subject_id: sid, teacher_id: user?.id }))
+      );
+      if (csError) toast({ title: "Erro ao vincular matérias", description: csError.message, variant: "destructive" });
+    }
 
     if (error) {
       toast({
@@ -89,10 +115,59 @@ const Turmas = () => {
         title: "Turma criada com sucesso!",
       });
       setOpen(false);
-      setFormData({ name: "", year: new Date().getFullYear(), semester: 1 });
+      setFormData({ name: "", year: new Date().getFullYear(), semester: 1, course: "" });
+      setSelectedSubjects([]);
       fetchClasses();
     }
   };
+
+  const openSubjects = (c: Class) => {
+    setSubjectsClass(c);
+    setEditSubjects(classSubjects.filter((cs) => cs.class_id === c.id).map((cs) => cs.subject_id));
+    setSubjectsOpen(true);
+  };
+
+  const saveSubjects = async () => {
+    if (!subjectsClass) return;
+    const current = classSubjects.filter((cs) => cs.class_id === subjectsClass.id);
+    const toAdd = editSubjects.filter((sid) => !current.some((c) => c.subject_id === sid));
+    const toRemove = current.filter((c) => !editSubjects.includes(c.subject_id));
+    const { data: { user } } = await supabase.auth.getUser();
+    if (toAdd.length) {
+      const { error } = await supabase.from("class_subjects").insert(
+        toAdd.map((sid) => ({ class_id: subjectsClass.id, subject_id: sid, teacher_id: user?.id }))
+      );
+      if (error) return toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+    }
+    if (toRemove.length) {
+      const { error } = await supabase.from("class_subjects").delete().in("id", toRemove.map((r) => r.id));
+      if (error) return toast({ title: "Erro ao desvincular (pode haver notas lançadas)", description: error.message, variant: "destructive" });
+    }
+    toast({ title: "Matérias atualizadas" });
+    setSubjectsOpen(false);
+    fetchClasses();
+  };
+
+  const toggle = (list: string[], id: string) =>
+    list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+
+  const subjectList = (
+    selected: string[],
+    onToggle: (id: string) => void
+  ) => (
+    <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1">
+      {subjects.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma matéria cadastrada</p>
+      ) : (
+        subjects.map((s) => (
+          <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 rounded hover:bg-muted">
+            <Checkbox checked={selected.includes(s.id)} onCheckedChange={() => onToggle(s.id)} />
+            {s.name} <span className="text-muted-foreground">({s.code})</span>
+          </label>
+        ))
+      )}
+    </div>
+  );
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("classes").delete().eq("id", id);
@@ -291,6 +366,15 @@ const Turmas = () => {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="course">Curso</Label>
+                    <Input
+                      id="course"
+                      value={formData.course}
+                      onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                      placeholder="Ex: Técnico em Informática"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="year">Ano</Label>
                     <Input
                       id="year"
@@ -315,6 +399,10 @@ const Turmas = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>Matérias</Label>
+                    {subjectList(selectedSubjects, (id) => setSelectedSubjects(toggle(selectedSubjects, id)))}
+                  </div>
                   <Button type="submit" className="w-full">Criar Turma</Button>
                 </form>
               </DialogContent>
@@ -325,8 +413,10 @@ const Turmas = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Curso</TableHead>
                   <TableHead>Ano</TableHead>
                   <TableHead>Semestre</TableHead>
+                  <TableHead>Matérias</TableHead>
                   <TableHead>Alunos</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -335,8 +425,24 @@ const Turmas = () => {
                 {classes.map((classItem) => (
                   <TableRow key={classItem.id}>
                     <TableCell className="font-medium">{classItem.name}</TableCell>
+                    <TableCell>{classItem.course || "-"}</TableCell>
                     <TableCell>{classItem.year}</TableCell>
                     <TableCell>{classItem.semester}º Semestre</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {classSubjects
+                          .filter((cs) => cs.class_id === classItem.id)
+                          .map((cs) => (
+                            <Badge key={cs.id} variant="secondary">
+                              {subjects.find((s) => s.id === cs.subject_id)?.name}
+                            </Badge>
+                          ))}
+                        <Button variant="ghost" size="sm" onClick={() => openSubjects(classItem)}>
+                          <BookOpen className="mr-1 h-4 w-4" />
+                          Vincular
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
@@ -360,7 +466,7 @@ const Turmas = () => {
                 ))}
                 {classes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       Nenhuma turma cadastrada
                     </TableCell>
                   </TableRow>
@@ -369,6 +475,17 @@ const Turmas = () => {
             </Table>
           </CardContent>
         </Card>
+
+        <Dialog open={subjectsOpen} onOpenChange={setSubjectsOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Matérias - {subjectsClass?.name}</DialogTitle>
+              <DialogDescription>Selecione as matérias desta turma</DialogDescription>
+            </DialogHeader>
+            {subjectList(editSubjects, (id) => setEditSubjects(toggle(editSubjects, id)))}
+            <Button onClick={saveSubjects} className="w-full">Salvar</Button>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={enrollmentOpen} onOpenChange={setEnrollmentOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
