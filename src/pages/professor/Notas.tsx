@@ -93,13 +93,30 @@ const Notas = () => {
   }, [selectedClass]);
 
   useEffect(() => {
-    if (selectedSubject) {
-      const cs = classSubjects.find(cs => cs.subject_id === selectedSubject);
+    const resolve = async () => {
+      if (!selectedSubject || !selectedClass) return;
+      const cs = classSubjects.find(cs => cs.subject_id === selectedSubject && cs.id);
       if (cs) {
         setClassSubjectId(cs.id);
+        return;
       }
-    }
-  }, [selectedSubject, classSubjects]);
+      // Vínculo turma-matéria ainda não existe: cria automaticamente
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("class_subjects")
+        .insert({ class_id: selectedClass, subject_id: selectedSubject, teacher_id: user?.id })
+        .select("id")
+        .single();
+      if (error) {
+        toast({ title: "Erro ao vincular matéria", description: error.message, variant: "destructive" });
+        return;
+      }
+      setClassSubjectId(data.id);
+      setClassSubjects(prev => prev.map(p => p.subject_id === selectedSubject ? { ...p, id: data.id } : p));
+    };
+    setClassSubjectId("");
+    resolve();
+  }, [selectedSubject]);
 
   const fetchClasses = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -108,7 +125,6 @@ const Notas = () => {
     const { data, error } = await supabase
       .from("classes")
       .select("id, name")
-      .eq("teacher_id", user.id)
       .order("name");
 
     if (error) {
@@ -123,20 +139,27 @@ const Notas = () => {
   };
 
   const fetchClassSubjects = async () => {
-    const { data, error } = await supabase
-      .from("class_subjects")
-      .select("id, class_id, subject_id, subjects(id, name)")
-      .eq("class_id", selectedClass);
+    const [subjectsRes, linksRes] = await Promise.all([
+      supabase.from("subjects").select("id, name").order("name"),
+      supabase.from("class_subjects").select("id, subject_id").eq("class_id", selectedClass),
+    ]);
 
-    if (error) {
+    if (subjectsRes.error || linksRes.error) {
       toast({
         title: "Erro ao carregar matérias",
-        description: error.message,
+        description: (subjectsRes.error || linksRes.error)!.message,
         variant: "destructive",
       });
-    } else {
-      setClassSubjects(data || []);
+      return;
     }
+    setClassSubjects(
+      (subjectsRes.data || []).map((s) => ({
+        id: linksRes.data?.find((l) => l.subject_id === s.id)?.id || "",
+        class_id: selectedClass,
+        subject_id: s.id,
+        subjects: s,
+      }))
+    );
   };
 
   const fetchEnrolledStudents = async () => {
@@ -428,7 +451,7 @@ const Notas = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {classSubjects.map((cs) => (
-                      <SelectItem key={cs.id} value={cs.subject_id}>
+                      <SelectItem key={cs.subject_id} value={cs.subject_id}>
                         {cs.subjects?.name}
                       </SelectItem>
                     ))}
