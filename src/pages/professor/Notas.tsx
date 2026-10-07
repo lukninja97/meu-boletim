@@ -451,7 +451,7 @@ const Notas = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {classSubjects.map((cs) => (
-                      <SelectItem key={cs.id} value={cs.subject_id}>
+                      <SelectItem key={cs.subject_id} value={cs.subject_id}>
                         {cs.subjects?.name}
                       </SelectItem>
                     ))}
