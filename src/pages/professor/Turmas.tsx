@@ -434,7 +434,7 @@ const Turmas = () => {
                           .filter((cs) => cs.class_id === classItem.id)
                           .map((cs) => (
                             <Badge key={cs.id} variant="secondary">
-                              {subjects.find((s) => s.id === cs.subject_id)?.name}
+                              {subjects.find((s) => s.id === cs.subject_id)?.code}
                             </Badge>
                           ))}
                         <Button variant="ghost" size="sm" onClick={() => openSubjects(classItem)}>
