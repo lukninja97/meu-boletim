@@ -152,13 +152,18 @@ const Notas = () => {
       });
       return;
     }
+    // Mostrar somente as matérias já vinculadas à turma selecionada
+    const links = linksRes.data || [];
+    const linkedSubjectIds = new Set(links.map((l) => l.subject_id));
     setClassSubjects(
-      (subjectsRes.data || []).map((s) => ({
-        id: linksRes.data?.find((l) => l.subject_id === s.id)?.id || "",
-        class_id: selectedClass,
-        subject_id: s.id,
-        subjects: s,
-      }))
+      (subjectsRes.data || [])
+        .filter((s) => linkedSubjectIds.has(s.id))
+        .map((s) => ({
+          id: links.find((l) => l.subject_id === s.id)!.id,
+          class_id: selectedClass,
+          subject_id: s.id,
+          subjects: s,
+        }))
     );
   };
 
