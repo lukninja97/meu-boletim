@@ -90,6 +90,7 @@ export type Database = {
       }
       classes: {
         Row: {
+          course: string | null
           created_at: string | null
           id: string
           name: string
@@ -99,6 +100,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          course?: string | null
           created_at?: string | null
           id?: string
           name: string
@@ -108,6 +110,7 @@ export type Database = {
           year: number
         }
         Update: {
+          course?: string | null
           created_at?: string | null
           id?: string
           name?: string
