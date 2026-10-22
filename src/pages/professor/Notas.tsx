@@ -522,7 +522,7 @@ const Notas = () => {
                             </TableCell>
                             <TableCell>
                               {student.existing_grade
-                                ? student.existing_grade.grade_value.toFixed(2)
+                                ? Math.round(student.existing_grade.grade_value)
                                 : "-"}
                             </TableCell>
                             <TableCell>
@@ -608,7 +608,7 @@ const Notas = () => {
                         {grade.class_subjects?.subjects?.name || "-"}
                       </TableCell>
                       <TableCell className="capitalize">{grade.grade_type}</TableCell>
-                      <TableCell>{grade.grade_value.toFixed(2)}</TableCell>
+                      <TableCell>{Math.round(grade.grade_value)}</TableCell>
                       <TableCell>{new Date(grade.grade_date).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))}
