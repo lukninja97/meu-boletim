@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Student {
@@ -21,6 +21,8 @@ const Alunos = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -139,6 +141,47 @@ const Alunos = () => {
     }
   };
 
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+      const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const pick = (r: Record<string, any>, keys: string[]) => {
+        const k = Object.keys(r).find((x) => keys.includes(norm(x)));
+        return k ? String(r[k]).trim() : "";
+      };
+      let ok = 0;
+      const fails: string[] = [];
+      for (const [i, r] of rows.entries()) {
+        const full_name = pick(r, ["nome", "nome completo", "name", "full_name"]);
+        const email = pick(r, ["email", "e-mail"]);
+        const password = pick(r, ["senha", "password"]);
+        if (!full_name || !email || password.length < 6) {
+          fails.push(`Linha ${i + 2}: dados incompletos (senha mín. 6)`);
+          continue;
+        }
+        const { error } = await supabase.functions.invoke("create-student", { body: { full_name, email, password } });
+        if (error) fails.push(`Linha ${i + 2} (${email}): não cadastrado`);
+        else ok++;
+      }
+      toast({
+        title: `${ok} aluno(s) cadastrado(s)`,
+        description: fails.length ? `${fails.length} com erro: ${fails.slice(0, 3).join("; ")}${fails.length > 3 ? "..." : ""}` : "Importação concluída.",
+        variant: fails.length && !ok ? "destructive" : "default",
+      });
+      fetchStudents();
+    } catch (err: any) {
+      toast({ title: "Erro ao ler arquivo", description: err.message, variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -166,6 +209,12 @@ const Alunos = () => {
               <CardTitle>Alunos</CardTitle>
               <CardDescription>Lista de todos os alunos cadastrados</CardDescription>
             </div>
+            <div className="flex gap-2">
+            <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
+            <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()} title="Colunas: nome, email, senha">
+              <Upload className="mr-2 h-4 w-4" />
+              {importing ? "Importando..." : "Importar CSV/Excel"}
+            </Button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -213,6 +262,7 @@ const Alunos = () => {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
