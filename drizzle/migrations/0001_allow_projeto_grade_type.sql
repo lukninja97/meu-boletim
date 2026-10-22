@@ -1,0 +1,2 @@
+ALTER TABLE public.grades DROP CONSTRAINT IF EXISTS grades_grade_type_check;
+ALTER TABLE public.grades ADD CONSTRAINT grades_grade_type_check CHECK (grade_type = ANY (ARRAY['prova','trabalho','participacao','final','projeto']));
