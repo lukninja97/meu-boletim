@@ -8,6 +8,13 @@
       "when": 1792687320913,
       "tag": "0000_grade_value_scale_0_100",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792687856906,
+      "tag": "0001_allow_projeto_grade_type",
+      "breakpoints": true
     }
   ]
 }
