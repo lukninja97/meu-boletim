@@ -292,7 +292,7 @@ const Notas = () => {
       .filter(input => input.grade_value !== "")
       .map(input => {
         const gradeValue = parseFloat(input.grade_value);
-        if (isNaN(gradeValue) || gradeValue < 0 || gradeValue > 10) {
+        if (isNaN(gradeValue) || gradeValue < 0 || gradeValue > 100) {
           return null;
         }
         return {
@@ -309,7 +309,7 @@ const Notas = () => {
     if (gradesToSave.length === 0) {
       toast({
         title: "Nenhuma nota válida",
-        description: "Preencha ao menos uma nota válida (0-10) antes de salvar",
+        description: "Preencha ao menos uma nota válida (0-100) antes de salvar",
         variant: "destructive",
       });
       return;
@@ -503,7 +503,7 @@ const Notas = () => {
                       <TableRow>
                         <TableHead className="w-[40%]">Aluno</TableHead>
                         <TableHead className="w-[15%]">Nota Atual</TableHead>
-                        <TableHead className="w-[20%]">Nova Nota (0-10)</TableHead>
+                        <TableHead className="w-[20%]">Nova Nota (0-100)</TableHead>
                         <TableHead className="w-[25%]">Observações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -528,15 +528,15 @@ const Notas = () => {
                             <TableCell>
                               <Input
                                 type="number"
-                                step="0.01"
+                                step="10"
                                 min="0"
-                                max="10"
+                                max="100"
                                 value={input.grade_value}
                                 onChange={(e) =>
                                   handleGradeChange(student.id, "grade_value", e.target.value)
                                 }
                                 className="w-24"
-                                placeholder="0-10"
+                                placeholder="0-100"
                               />
                             </TableCell>
                             <TableCell>

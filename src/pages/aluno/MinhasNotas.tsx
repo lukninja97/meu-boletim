@@ -141,8 +141,8 @@ const MinhasNotas = () => {
                       <TableCell>{grade.grade_type}</TableCell>
                       <TableCell>
                         <span className={`font-semibold ${
-                          grade.grade_value >= 7 ? "text-green-600" : 
-                          grade.grade_value >= 5 ? "text-yellow-600" : "text-red-600"
+                          grade.grade_value >= 70 ? "text-green-600" : 
+                          grade.grade_value >= 50 ? "text-yellow-600" : "text-red-600"
                         }`}>
                           {grade.grade_value.toFixed(1)}
                         </span>
