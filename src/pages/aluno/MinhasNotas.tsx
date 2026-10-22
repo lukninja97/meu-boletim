@@ -144,7 +144,7 @@ const MinhasNotas = () => {
                           grade.grade_value >= 70 ? "text-green-600" : 
                           grade.grade_value >= 50 ? "text-yellow-600" : "text-red-600"
                         }`}>
-                          {grade.grade_value.toFixed(1)}
+                          {Math.round(grade.grade_value)}
                         </span>
                       </TableCell>
                       <TableCell>
