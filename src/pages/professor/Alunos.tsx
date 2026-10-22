@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
 interface Student {
@@ -206,8 +207,15 @@ const Alunos = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Alunos</CardTitle>
-              <CardDescription>Lista de todos os alunos cadastrados</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                Alunos
+                <Badge variant="secondary">{students.length}</Badge>
+              </CardTitle>
+              <CardDescription>
+                {students.length === 1
+                  ? "1 aluno cadastrado"
+                  : `${students.length} alunos cadastrados`}
+              </CardDescription>
             </div>
             <div className="flex gap-2">
             <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleImport} />
