@@ -41,15 +41,10 @@ interface TurmaGrades {
   year: number;
   semester: number;
   subjects: SubjectGrade[];
-  average: number | null;
 }
 
 const gradeTone = (value: number) =>
-  value >= 70
-    ? "bg-green-100 text-green-800"
-    : value >= 50
-      ? "bg-yellow-100 text-yellow-800"
-      : "bg-red-100 text-red-800";
+  value >= 50 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
 
 const MinhasNotas = () => {
   const navigate = useNavigate();
@@ -137,9 +132,6 @@ const MinhasNotas = () => {
           })
           .sort((a, b) => a.subjectName.localeCompare(b.subjectName, "pt-BR"));
 
-        const averages = subjects.filter(s => s.average !== null).map(s => s.average as number);
-        const turmaAverage =
-          averages.length > 0 ? Math.round(averages.reduce((sum, v) => sum + v, 0) / averages.length) : null;
 
         return {
           classId: cls.id,
@@ -148,7 +140,6 @@ const MinhasNotas = () => {
           year: cls.year,
           semester: cls.semester,
           subjects,
-          average: turmaAverage,
         };
       })
       .sort((a, b) => a.className.localeCompare(b.className, "pt-BR"));
@@ -210,18 +201,6 @@ const MinhasNotas = () => {
                         {turma.year} · {turma.semester}º semestre
                       </CardDescription>
                     </div>
-                    {turma.average !== null && (
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-muted-foreground">Média</p>
-                        <span
-                          className={`inline-flex min-w-12 justify-center rounded-lg px-3 py-1 text-lg font-bold ${gradeTone(
-                            turma.average
-                          )}`}
-                        >
-                          {turma.average}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2">
