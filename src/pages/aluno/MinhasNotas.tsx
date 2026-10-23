@@ -177,7 +177,7 @@ const MinhasNotas = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Minhas Notas</h1>
             <p className="text-sm text-muted-foreground">
-              Suas notas por turma e matéria, sem Casas decimais
+              Suas notas por turma e matéria
             </p>
           </div>
           <Button variant="ghost" onClick={handleLogout}>
