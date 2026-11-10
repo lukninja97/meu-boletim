@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Save } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, ArrowDown, ArrowUp, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const DAYS = [
@@ -19,13 +19,15 @@ const DAYS = [
 ];
 
 type Subject = { id: string; name: string; code: string };
+type Block = { subject_id: string; lessons_count: number };
 
 const Horarios = () => {
   const navigate = useNavigate();
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [classId, setClassId] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [grid, setGrid] = useState<Record<string, number>>({});
+  const [days, setDays] = useState<Record<number, Block[]>>({});
+  const [day, setDay] = useState(1);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -41,29 +43,48 @@ const Horarios = () => {
         ? await supabase.from("subjects").select("id, name, code").in("id", ids).order("name")
         : { data: [] as Subject[] };
       setSubjects(subs || []);
-      const { data: sched } = await supabase.from("class_schedules").select("subject_id, day_of_week, lessons_count").eq("class_id", classId);
-      const g: Record<string, number> = {};
-      (sched || []).forEach((s) => (g[`${s.subject_id}-${s.day_of_week}`] = s.lessons_count));
-      setGrid(g);
+      const { data: sched } = await supabase
+        .from("class_schedules")
+        .select("subject_id, day_of_week, lessons_count, order_index")
+        .eq("class_id", classId)
+        .gt("lessons_count", 0)
+        .order("order_index");
+      const d: Record<number, Block[]> = {};
+      (sched || []).forEach((s) => {
+        (d[s.day_of_week] ||= []).push({ subject_id: s.subject_id, lessons_count: s.lessons_count });
+      });
+      setDays(d);
     })();
   }, [classId]);
 
-  const setCell = (sid: string, d: number, v: string) => {
-    const n = Math.max(0, Math.min(20, parseInt(v) || 0));
-    setGrid((g) => ({ ...g, [`${sid}-${d}`]: n }));
-  };
+  const blocks = days[day] || [];
+  const update = (fn: (b: Block[]) => Block[]) => setDays((d) => ({ ...d, [day]: fn([...(d[day] || [])]) }));
+
+  const move = (i: number, dir: -1 | 1) =>
+    update((b) => {
+      const j = i + dir;
+      if (j < 0 || j >= b.length) return b;
+      [b[i], b[j]] = [b[j], b[i]];
+      return b;
+    });
 
   const save = async () => {
     setSaving(true);
-    const rows = subjects.flatMap((s) =>
-      DAYS.map((d) => ({ class_id: classId, subject_id: s.id, day_of_week: d.n, lessons_count: grid[`${s.id}-${d.n}`] || 0 }))
-    );
-    const { error } = await supabase.from("class_schedules").upsert(rows, { onConflict: "class_id,subject_id,day_of_week" });
+    const { error: delErr } = await supabase.from("class_schedules").delete().eq("class_id", classId);
+    let error = delErr;
+    if (!error) {
+      const rows = DAYS.flatMap((d) =>
+        (days[d.n] || [])
+          .filter((b) => b.subject_id && b.lessons_count > 0)
+          .map((b, i) => ({ class_id: classId, subject_id: b.subject_id, day_of_week: d.n, lessons_count: b.lessons_count, order_index: i + 1 }))
+      );
+      if (rows.length) ({ error } = await supabase.from("class_schedules").insert(rows));
+    }
     setSaving(false);
     toast(error ? { title: "Erro ao salvar", description: error.message, variant: "destructive" } : { title: "Horário salvo!" });
   };
 
-  const total = (d: number) => subjects.reduce((acc, s) => acc + (grid[`${s.id}-${d}`] || 0), 0);
+  const total = (n: number) => (days[n] || []).reduce((a, b) => a + (b.lessons_count || 0), 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,43 +112,57 @@ const Horarios = () => {
         {classId && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Aulas por dia</CardTitle>
+              <CardTitle>Ordem das aulas do dia</CardTitle>
               <Button onClick={save} disabled={saving || !subjects.length}>
                 <Save className="mr-2 h-4 w-4" /> {saving ? "Salvando..." : "Salvar Horário"}
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {!subjects.length ? (
                 <p className="text-muted-foreground">Esta turma não tem matérias vinculadas. Vincule pela página de Turmas.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Matéria</TableHead>
-                        {DAYS.map((d) => <TableHead key={d.n} className="text-center">{d.label}</TableHead>)}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subjects.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell className="font-medium">{s.code} <span className="text-muted-foreground font-normal">— {s.name}</span></TableCell>
-                          {DAYS.map((d) => (
-                            <TableCell key={d.n}>
-                              <Input type="number" min={0} max={20} className="w-16 mx-auto text-center"
-                                value={grid[`${s.id}-${d.n}`] ?? 0}
-                                onChange={(e) => setCell(s.id, d.n, e.target.value)} />
-                            </TableCell>
-                          ))}
-                        </TableRow>
+                <>
+                  <Tabs value={String(day)} onValueChange={(v) => setDay(Number(v))}>
+                    <TabsList className="flex-wrap h-auto">
+                      {DAYS.map((d) => (
+                        <TabsTrigger key={d.n} value={String(d.n)}>
+                          {d.label} <span className="ml-1 text-muted-foreground">({total(d.n)})</span>
+                        </TabsTrigger>
                       ))}
-                      <TableRow>
-                        <TableCell className="font-semibold">Total de aulas</TableCell>
-                        {DAYS.map((d) => <TableCell key={d.n} className="text-center font-semibold">{total(d.n)}</TableCell>)}
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                    </TabsList>
+                  </Tabs>
+
+                  {blocks.length === 0 && <p className="text-muted-foreground">Nenhuma aula neste dia.</p>}
+
+                  <div className="space-y-2">
+                    {blocks.map((b, i) => (
+                      <div key={i} className="flex flex-wrap items-center gap-3 rounded-md border p-3">
+                        <span className="w-8 text-center font-bold text-primary">{i + 1}º</span>
+                        <Select value={b.subject_id} onValueChange={(v) => update((x) => { x[i] = { ...x[i], subject_id: v }; return x; })}>
+                          <SelectTrigger className="w-64"><SelectValue placeholder="Matéria" /></SelectTrigger>
+                          <SelectContent>
+                            {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Input type="number" min={1} max={20} className="w-20 text-center" value={b.lessons_count}
+                          onChange={(e) => update((x) => { x[i] = { ...x[i], lessons_count: Math.max(0, Math.min(20, parseInt(e.target.value) || 0)) }; return x; })} />
+                        <span className="text-sm text-muted-foreground">aulas</span>
+                        <div className="ml-auto flex gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Subir"><ArrowUp className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => move(i, 1)} disabled={i === blocks.length - 1} aria-label="Descer"><ArrowDown className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => update((x) => x.filter((_, k) => k !== i))} aria-label="Remover"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Button variant="outline" onClick={() => update((x) => [...x, { subject_id: "", lessons_count: 1 }])}>
+                      <Plus className="mr-2 h-4 w-4" /> Adicionar bloco
+                    </Button>
+                    <span className="font-semibold">Total do dia: {total(day)} aulas</span>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
