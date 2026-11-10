@@ -49,6 +49,48 @@ export type Database = {
           },
         ]
       }
+      class_schedules: {
+        Row: {
+          class_id: string
+          created_at: string | null
+          day_of_week: number
+          id: string
+          lessons_count: number
+          subject_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string | null
+          day_of_week: number
+          id?: string
+          lessons_count?: number
+          subject_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string | null
+          day_of_week?: number
+          id?: string
+          lessons_count?: number
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_schedules_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_schedules_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_subjects: {
         Row: {
           class_id: string

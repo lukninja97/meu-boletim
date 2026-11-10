@@ -15,6 +15,13 @@
       "when": 1792687856906,
       "tag": "0001_allow_projeto_grade_type",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794269112719,
+      "tag": "0002_create_class_schedules",
+      "breakpoints": true
     }
   ]
 }
