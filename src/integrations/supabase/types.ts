@@ -20,24 +20,33 @@ export type Database = {
           class_subject_id: string
           created_at: string | null
           id: string
+          missed_classes: number
           present: boolean
+          status: string
           student_id: string
+          total_classes: number
         }
         Insert: {
           attendance_date: string
           class_subject_id: string
           created_at?: string | null
           id?: string
+          missed_classes?: number
           present?: boolean
+          status?: string
           student_id: string
+          total_classes?: number
         }
         Update: {
           attendance_date?: string
           class_subject_id?: string
           created_at?: string | null
           id?: string
+          missed_classes?: number
           present?: boolean
+          status?: string
           student_id?: string
+          total_classes?: number
         }
         Relationships: [
           {

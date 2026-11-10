@@ -29,6 +29,13 @@
       "when": 1794270806341,
       "tag": "0003_schedule_block_order",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794274935810,
+      "tag": "0004_attendance_lessons",
+      "breakpoints": true
     }
   ]
 }
