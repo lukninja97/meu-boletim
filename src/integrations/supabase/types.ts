@@ -56,6 +56,7 @@ export type Database = {
           day_of_week: number
           id: string
           lessons_count: number
+          order_index: number
           subject_id: string
         }
         Insert: {
@@ -64,6 +65,7 @@ export type Database = {
           day_of_week: number
           id?: string
           lessons_count?: number
+          order_index?: number
           subject_id: string
         }
         Update: {
@@ -72,6 +74,7 @@ export type Database = {
           day_of_week?: number
           id?: string
           lessons_count?: number
+          order_index?: number
           subject_id?: string
         }
         Relationships: [
