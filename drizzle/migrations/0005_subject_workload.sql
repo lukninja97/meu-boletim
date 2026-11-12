@@ -1,0 +1,2 @@
+ALTER TABLE public.subjects ADD COLUMN workload_hours integer;
+ALTER TABLE public.subjects ADD COLUMN total_lessons integer GENERATED ALWAYS AS (CASE WHEN workload_hours IS NULL THEN NULL ELSE round(workload_hours * 60 / 45.0)::integer END) STORED;
