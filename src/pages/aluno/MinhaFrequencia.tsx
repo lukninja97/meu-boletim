@@ -3,191 +3,102 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { absencePercent, absenceTone } from "@/lib/absence";
 
-interface Attendance {
-  id: string;
-  attendance_date: string;
-  present: boolean;
-  class_subject_id: string;
-}
-
-interface ClassSubject {
-  id: string;
-  class_id: string;
-  subject_id: string;
-  className?: string;
-  subjectName?: string;
-}
+interface SubjectRow { subjectId: string; name: string; code: string; pct: number }
+interface TurmaCard { classId: string; name: string; course: string | null; year: number; semester: number; subjects: SubjectRow[] }
 
 const MinhaFrequencia = () => {
   const navigate = useNavigate();
-  const [attendance, setAttendance] = useState<Attendance[]>([]);
-  const [classSubjects, setClassSubjects] = useState<{ [key: string]: ClassSubject }>({});
+  const [turmas, setTurmas] = useState<TurmaCard[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAttendance();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const fetchAttendance = async () => {
+  const load = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
-    const { data: attendanceData, error: attendanceError } = await supabase
-      .from("attendance")
-      .select("*")
-      .eq("student_id", user.id)
-      .order("attendance_date", { ascending: false });
-
-    if (attendanceError) {
-      toast({
-        title: "Erro ao carregar frequência",
-        description: attendanceError.message,
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
+    const { data: enr, error } = await supabase.from("enrollments").select("class_id").eq("student_id", user.id);
+    if (error) {
+      toast({ title: "Erro ao carregar frequência", description: error.message, variant: "destructive" });
+      setLoading(false); return;
     }
+    const classIds = Array.from(new Set((enr || []).map(e => e.class_id)));
+    if (!classIds.length) { setLoading(false); return; }
 
-    setAttendance(attendanceData || []);
+    const [{ data: classes }, { data: links }] = await Promise.all([
+      supabase.from("classes").select("id, name, course, year, semester").in("id", classIds),
+      supabase.from("class_subjects").select("id, class_id, subject_id").in("class_id", classIds),
+    ]);
+    const csIds = (links || []).map(l => l.id);
+    const subjIds = Array.from(new Set((links || []).map(l => l.subject_id)));
+    const [{ data: att }, { data: subjects }] = await Promise.all([
+      csIds.length ? supabase.from("attendance").select("class_subject_id, total_classes, missed_classes").eq("student_id", user.id).in("class_subject_id", csIds) : Promise.resolve({ data: [] as any[] }),
+      subjIds.length ? supabase.from("subjects").select("id, name, code, total_lessons").in("id", subjIds) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const subjMap: Record<string, any> = {};
+    (subjects || []).forEach((s: any) => { subjMap[s.id] = s; });
+    const agg: Record<string, { missed: number; given: number }> = {};
+    (att || []).forEach((a: any) => {
+      const x = (agg[a.class_subject_id] ||= { missed: 0, given: 0 });
+      x.missed += a.missed_classes || 0; x.given += a.total_classes || 0;
+    });
 
-    // Buscar informações de turmas e matérias
-    const classSubjectIds = attendanceData?.map(a => a.class_subject_id) || [];
-    if (classSubjectIds.length > 0) {
-      const { data: csData } = await supabase
-        .from("class_subjects")
-        .select("*")
-        .in("id", classSubjectIds);
-
-      if (csData) {
-        // Buscar nomes das turmas e matérias
-        const classIds = csData.map(cs => cs.class_id);
-        const subjectIds = csData.map(cs => cs.subject_id);
-
-        const [{ data: classesData }, { data: subjectsData }] = await Promise.all([
-          supabase.from("classes").select("id, name").in("id", classIds),
-          supabase.from("subjects").select("id, name").in("id", subjectIds)
-        ]);
-
-        const classesMap = classesData?.reduce((acc, c) => ({ ...acc, [c.id]: c.name }), {}) || {};
-        const subjectsMap = subjectsData?.reduce((acc, s) => ({ ...acc, [s.id]: s.name }), {}) || {};
-
-        const csMap = csData.reduce((acc, cs) => {
-          acc[cs.id] = {
-            ...cs,
-            className: classesMap[cs.class_id] || "-",
-            subjectName: subjectsMap[cs.subject_id] || "-"
-          };
-          return acc;
-        }, {} as { [key: string]: ClassSubject });
-
-        setClassSubjects(csMap);
-      }
-    }
-
+    setTurmas((classes || []).map((c: any) => ({
+      classId: c.id, name: c.name, course: c.course ?? null, year: c.year, semester: c.semester,
+      subjects: (links || []).filter(l => l.class_id === c.id).map(l => {
+        const s = subjMap[l.subject_id]; const a = agg[l.id] || { missed: 0, given: 0 };
+        return { subjectId: l.subject_id, name: s?.name || "-", code: s?.code || "-", pct: absencePercent(a.missed, s?.total_lessons ?? null, a.given) };
+      }).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
     setLoading(false);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">Carregando...</p>
-      </div>
-    );
-  }
-
-  const calculateAttendanceRate = () => {
-    if (attendance.length === 0) return 0;
-    const presentCount = attendance.filter(a => a.present).length;
-    return ((presentCount / attendance.length) * 100).toFixed(1);
-  };
+  if (loading) return <div className="flex items-center justify-center min-h-screen"><p className="text-muted-foreground">Carregando...</p></div>;
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <Button variant="ghost" onClick={() => navigate("/aluno")} className="mb-2">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
+            <ArrowLeft className="mr-2 h-4 w-4" />Voltar
           </Button>
           <h1 className="text-2xl font-bold text-foreground">Minha Frequência</h1>
+          <p className="text-sm text-muted-foreground">Porcentagem de ausência por turma e matéria</p>
         </div>
       </header>
-
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Taxa de Presença</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-primary">
-                {calculateAttendanceRate()}%
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {attendance.filter(a => a.present).length} de {attendance.length} aulas
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Presença</CardTitle>
-            <CardDescription>Registro de frequência em aulas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Turma</TableHead>
-                  <TableHead>Matéria</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attendance.map((record) => {
-                  const cs = classSubjects[record.class_subject_id];
-                  return (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">{cs?.className || "-"}</TableCell>
-                      <TableCell>{cs?.subjectName || "-"}</TableCell>
-                      <TableCell>
-                        {new Date(record.attendance_date).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {record.present ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span className="text-green-600">Presente</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="w-4 h-4 text-red-600" />
-                              <span className="text-red-600">Ausente</span>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {attendance.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      Nenhum registro de frequência encontrado
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {turmas.length === 0 ? (
+          <Card><CardHeader><CardTitle>Nenhuma turma vinculada</CardTitle>
+            <CardDescription>Você ainda não está matriculado em nenhuma turma. Fale com a secretaria.</CardDescription></CardHeader></Card>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {turmas.map(t => (
+              <Card key={t.classId} className="h-full">
+                <CardHeader className="bg-muted/40">
+                  <CardTitle className="text-lg">{t.name}</CardTitle>
+                  <CardDescription>{t.course ? `${t.course} · ` : ""}{t.year} · {t.semester}º semestre</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <ul className="divide-y divide-border">
+                    {t.subjects.map(s => (
+                      <li key={s.subjectId} className="flex items-center justify-between gap-3 py-3">
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span className="truncate font-medium text-foreground">{s.name}</span>
+                          <span className="text-xs text-muted-foreground">{s.code}</span>
+                        </span>
+                        <span className={`inline-flex min-w-14 justify-center rounded-lg px-3 py-1 text-base font-bold ${absenceTone(s.pct)}`}>{s.pct}%</span>
+                      </li>
+                    ))}
+                    {t.subjects.length === 0 && <li className="py-3 text-sm text-muted-foreground">Nenhuma matéria vinculada a esta turma</li>}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
