@@ -8,14 +8,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { lessonsFromHours } from "@/lib/workload";
 
 interface Subject {
   id: string;
   name: string;
   code: string;
   description: string | null;
+  workload_hours: number | null;
+  total_lessons: number | null;
 }
 
 const Materias = () => {
@@ -27,7 +30,27 @@ const Materias = () => {
     name: "",
     code: "",
     description: "",
+    workload_hours: "",
   });
+  const [editing, setEditing] = useState<Subject | null>(null);
+  const [editHours, setEditHours] = useState("");
+
+  const saveHours = async () => {
+    if (!editing) return;
+    const h = parseInt(editHours);
+    if (!h || h <= 0) {
+      toast({ title: "Informe uma carga horária válida", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("subjects").update({ workload_hours: h }).eq("id", editing.id);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Carga horária atualizada" });
+      setEditing(null);
+      fetchSubjects();
+    }
+  };
 
   useEffect(() => {
     fetchSubjects();
@@ -58,6 +81,7 @@ const Materias = () => {
       name: formData.name,
       code: formData.code,
       description: formData.description || null,
+      workload_hours: parseInt(formData.workload_hours),
     });
 
     if (error) {
@@ -71,7 +95,7 @@ const Materias = () => {
         title: "Matéria criada com sucesso!",
       });
       setOpen(false);
-      setFormData({ name: "", code: "", description: "" });
+      setFormData({ name: "", code: "", description: "", workload_hours: "" });
       fetchSubjects();
     }
   };
@@ -152,6 +176,22 @@ const Materias = () => {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="hours">Carga Horária (horas)</Label>
+                    <Input
+                      id="hours"
+                      type="number"
+                      min={1}
+                      value={formData.workload_hours}
+                      onChange={(e) => setFormData({ ...formData, workload_hours: e.target.value })}
+                      required
+                    />
+                    {Number(formData.workload_hours) > 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Equivale a <strong>{lessonsFromHours(Number(formData.workload_hours))} aulas</strong> de 45 minutos
+                      </p>
+                    )}
+                  </div>
+                  <div>
                     <Label htmlFor="description">Descrição</Label>
                     <Textarea
                       id="description"
@@ -170,6 +210,7 @@ const Materias = () => {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Carga Horária</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -179,8 +220,21 @@ const Materias = () => {
                   <TableRow key={subject.id}>
                     <TableCell className="font-medium">{subject.code}</TableCell>
                     <TableCell>{subject.name}</TableCell>
+                    <TableCell>
+                      {subject.workload_hours
+                        ? `${subject.workload_hours}h (${subject.total_lessons} aulas)`
+                        : <span className="text-muted-foreground">Não definida</span>}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{subject.description || "-"}</TableCell>
                     <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Editar carga horária"
+                        onClick={() => { setEditing(subject); setEditHours(String(subject.workload_hours ?? "")); }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -193,7 +247,7 @@ const Materias = () => {
                 ))}
                 {subjects.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       Nenhuma matéria cadastrada
                     </TableCell>
                   </TableRow>
@@ -202,6 +256,24 @@ const Materias = () => {
             </Table>
           </CardContent>
         </Card>
+        <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Carga Horária</DialogTitle>
+              <DialogDescription>{editing?.name}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="edit-hours">Carga Horária (horas)</Label>
+              <Input id="edit-hours" type="number" min={1} value={editHours} onChange={(e) => setEditHours(e.target.value)} />
+              {Number(editHours) > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Equivale a <strong>{lessonsFromHours(Number(editHours))} aulas</strong> de 45 minutos
+                </p>
+              )}
+            </div>
+            <Button onClick={saveHours} className="w-full">Salvar</Button>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
