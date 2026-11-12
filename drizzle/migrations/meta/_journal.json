@@ -36,6 +36,13 @@
       "when": 1794274935810,
       "tag": "0004_attendance_lessons",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794486297136,
+      "tag": "0005_subject_workload",
+      "breakpoints": true
     }
   ]
 }

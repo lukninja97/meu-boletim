@@ -282,6 +282,8 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          total_lessons: number | null
+          workload_hours: number | null
         }
         Insert: {
           code: string
@@ -289,6 +291,8 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          total_lessons?: number | null
+          workload_hours?: number | null
         }
         Update: {
           code?: string
@@ -296,6 +300,8 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          total_lessons?: number | null
+          workload_hours?: number | null
         }
         Relationships: []
       }
