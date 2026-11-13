@@ -19,7 +19,11 @@ interface Class {
   year: number;
   semester: number;
   course: string | null;
+  course_id: string | null;
+  city: string | null;
 }
+interface Course { id: string; name: string; code: string; total_semesters: number }
+interface CourseSubject { course_id: string; semester_number: number; subject_id: string }
 
 interface Subject { id: string; name: string; code: string; }
 
@@ -43,8 +47,14 @@ const Turmas = () => {
     name: "",
     year: new Date().getFullYear(),
     semester: 1,
-    course: "",
+    course_id: "",
+    city: "",
   });
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [courseSubjects, setCourseSubjects] = useState<CourseSubject[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [newStudents, setNewStudents] = useState<string[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [classSubjects, setClassSubjects] = useState<{ id: string; class_id: string; subject_id: string }[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -75,10 +85,20 @@ const Turmas = () => {
     } else {
       setClasses((data as Class[]) || []);
     }
-    const [{ data: subs }, { data: cs }] = await Promise.all([
+    const [{ data: subs }, { data: cs }, { data: crs }, { data: crsSubs }, { data: roles }] = await Promise.all([
       supabase.from("subjects").select("id, name, code").order("name"),
       supabase.from("class_subjects").select("id, class_id, subject_id"),
+      supabase.from("courses").select("id, name, code, total_semesters").order("name"),
+      supabase.from("course_subjects").select("course_id, semester_number, subject_id"),
+      supabase.from("user_roles").select("user_id").eq("role", "aluno"),
     ]);
+    setCourses(crs || []);
+    setCourseSubjects(crsSubs || []);
+    const ids = (roles || []).map((x) => x.user_id);
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids).order("full_name");
+      setAllStudents(profs || []);
+    }
     setSubjects(subs || []);
     setClassSubjects(cs || []);
     setLoading(false);
@@ -89,13 +109,27 @@ const Turmas = () => {
 
     const { data: { user } } = await supabase.auth.getUser();
     
+    if (!formData.course_id) {
+      toast({ title: "Escolha o curso", variant: "destructive" });
+      return;
+    }
+    const course = courses.find((c) => c.id === formData.course_id);
     const { data: created, error } = await supabase.from("classes").insert({
       name: formData.name,
       year: formData.year,
       semester: formData.semester,
-      course: formData.course || null,
+      course_id: formData.course_id,
+      course: course?.name ?? null,
+      city: formData.city || null,
       teacher_id: user?.id,
     }).select("id").single();
+
+    if (!error && created && newStudents.length > 0) {
+      const { error: enErr } = await supabase.from("enrollments").insert(
+        newStudents.map((sid) => ({ student_id: sid, class_id: created.id, status: "active" }))
+      );
+      if (enErr) toast({ title: "Erro ao matricular alunos", description: enErr.message, variant: "destructive" });
+    }
 
     if (!error && created && selectedSubjects.length > 0) {
       const { error: csError } = await supabase.from("class_subjects").insert(
@@ -115,11 +149,24 @@ const Turmas = () => {
         title: "Turma criada com sucesso!",
       });
       setOpen(false);
-      setFormData({ name: "", year: new Date().getFullYear(), semester: 1, course: "" });
+      setFormData({ name: "", year: new Date().getFullYear(), semester: 1, course_id: "", city: "" });
       setSelectedSubjects([]);
+      setNewStudents([]);
+      setStudentSearch("");
       fetchClasses();
     }
   };
+
+  const selectedCourse = courses.find((c) => c.id === formData.course_id);
+  const pickCourse = (courseId: string, semester: number) => {
+    setFormData((f) => ({ ...f, course_id: courseId, semester }));
+    setSelectedSubjects(
+      courseSubjects.filter((cs) => cs.course_id === courseId && cs.semester_number === semester).map((cs) => cs.subject_id)
+    );
+  };
+  const filteredStudents = allStudents.filter((st) =>
+    st.full_name.toLowerCase().includes(studentSearch.toLowerCase())
+  );
 
   const openSubjects = (c: Class) => {
     setSubjectsClass(c);
@@ -350,58 +397,71 @@ const Turmas = () => {
                   Nova Turma
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Criar Nova Turma</DialogTitle>
                   <DialogDescription>Preencha os dados da nova turma</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Nome da Turma</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="course">Curso</Label>
-                    <Input
-                      id="course"
-                      value={formData.course}
-                      onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                      placeholder="Ex: Técnico em Informática"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="year">Ano</Label>
-                    <Input
-                      id="year"
-                      type="number"
-                      value={formData.year}
-                      onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="semester">Semestre</Label>
-                    <Select
-                      value={formData.semester.toString()}
-                      onValueChange={(value) => setFormData({ ...formData, semester: parseInt(value) })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                    <Label>Curso</Label>
+                    <Select value={formData.course_id} onValueChange={(v) => pickCourse(v, 1)}>
+                      <SelectTrigger><SelectValue placeholder="Escolha o curso" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">1º Semestre</SelectItem>
-                        <SelectItem value="2">2º Semestre</SelectItem>
+                        {courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {courses.length === 0 && <p className="text-xs text-muted-foreground mt-1">Cadastre um curso primeiro na tela Cursos.</p>}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label>Semestre</Label>
+                      <Select value={formData.semester.toString()} onValueChange={(v) => pickCourse(formData.course_id, parseInt(v))} disabled={!selectedCourse}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: selectedCourse?.total_semesters || 1 }, (_, i) => i + 1).map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n}º Semestre</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="city">Cidade</Label>
+                      <Input id="city" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Ex: Guarulhos" />
+                    </div>
+                    <div>
+                      <Label htmlFor="year">Ano</Label>
+                      <Input id="year" type="number" value={formData.year} onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })} required />
+                    </div>
                   </div>
                   <div>
-                    <Label>Matérias</Label>
-                    {subjectList(selectedSubjects, (id) => setSelectedSubjects(toggle(selectedSubjects, id)))}
+                    <Label htmlFor="name">Nome da Turma</Label>
+                    <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ex: DEV GUA 25/1S" required />
+                  </div>
+                  {selectedCourse && (
+                    <div>
+                      <Label>Matérias do {formData.semester}º semestre</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedSubjects.length === 0 ? (
+                          <span className="text-sm text-muted-foreground">Nenhuma matéria neste semestre do curso</span>
+                        ) : selectedSubjects.map((sid) => (
+                          <Badge key={sid} variant="secondary">{subjects.find((x) => x.id === sid)?.code}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <Label>Alunos ({newStudents.length} selecionados)</Label>
+                    <Input className="mt-1 mb-2" placeholder="Buscar aluno..." value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} />
+                    <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                      {filteredStudents.length === 0 && <p className="text-sm text-muted-foreground">Nenhum aluno encontrado</p>}
+                      {filteredStudents.map((st) => (
+                        <label key={st.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 rounded hover:bg-muted">
+                          <Checkbox checked={newStudents.includes(st.id)} onCheckedChange={() => setNewStudents(toggle(newStudents, st.id))} />
+                          {st.full_name}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                   <Button type="submit" className="w-full">Criar Turma</Button>
                 </form>
@@ -414,6 +474,7 @@ const Turmas = () => {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Curso</TableHead>
+                  <TableHead>Cidade</TableHead>
                   <TableHead>Ano</TableHead>
                   <TableHead>Semestre</TableHead>
                   <TableHead>Matérias</TableHead>
@@ -425,7 +486,8 @@ const Turmas = () => {
                 {classes.map((classItem) => (
                   <TableRow key={classItem.id}>
                     <TableCell className="font-medium">{classItem.name}</TableCell>
-                    <TableCell>{classItem.course || "-"}</TableCell>
+                    <TableCell>{courses.find((c) => c.id === classItem.course_id)?.code || classItem.course || "-"}</TableCell>
+                    <TableCell>{classItem.city || "-"}</TableCell>
                     <TableCell>{classItem.year}</TableCell>
                     <TableCell>{classItem.semester}º Semestre</TableCell>
                     <TableCell>
@@ -466,7 +528,7 @@ const Turmas = () => {
                 ))}
                 {classes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       Nenhuma turma cadastrada
                     </TableCell>
                   </TableRow>

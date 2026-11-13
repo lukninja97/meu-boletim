@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import ProfessorDashboard from "./pages/professor/ProfessorDashboard";
 import Alunos from "./pages/professor/Alunos";
 import Turmas from "./pages/professor/Turmas";
+import Cursos from "./pages/professor/Cursos";
 import Materias from "./pages/professor/Materias";
 import Notas from "./pages/professor/Notas";
 import Presenca from "./pages/professor/Presenca";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/professor" element={<ProfessorDashboard />} />
           <Route path="/professor/alunos" element={<Alunos />} />
           <Route path="/professor/turmas" element={<Turmas />} />
+          <Route path="/professor/cursos" element={<Cursos />} />
           <Route path="/professor/materias" element={<Materias />} />
           <Route path="/professor/notas" element={<Notas />} />
           <Route path="/professor/presenca" element={<Presenca />} />

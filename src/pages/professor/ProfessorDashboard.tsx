@@ -78,6 +78,19 @@ const ProfessorDashboard = () => {
             </CardContent>
           </Card>
 
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/professor/cursos")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-primary" />
+                Cursos
+              </CardTitle>
+              <CardDescription>Semestres e matérias de cada curso</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Monte a grade curricular</p>
+            </CardContent>
+          </Card>
+
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/professor/turmas")}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
