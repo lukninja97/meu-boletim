@@ -1,3 +1,4 @@
+import { activeClassSubjects } from "@/lib/semester";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,7 +142,7 @@ const Notas = () => {
   const fetchClassSubjects = async () => {
     const [subjectsRes, linksRes] = await Promise.all([
       supabase.from("subjects").select("id, name").order("name"),
-      supabase.from("class_subjects").select("id, subject_id").eq("class_id", selectedClass),
+      activeClassSubjects(selectedClass),
     ]);
 
     if (subjectsRes.error || linksRes.error) {

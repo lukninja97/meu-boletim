@@ -1,3 +1,4 @@
+import { activeClassSubjects } from "@/lib/semester";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +48,7 @@ const Presenca = () => {
       supabase.from("class_schedules").select("*").eq("class_id", classId).eq("day_of_week", dow).order("order_index"),
       supabase.from("enrollments").select("student_id").eq("class_id", classId).eq("status", "active"),
       supabase.from("subjects").select("id,name,code"),
-      supabase.from("class_subjects").select("id,subject_id").eq("class_id", classId),
+      activeClassSubjects(classId),
     ]);
     const subMap = new Map((subs.data || []).map((s) => [s.id, s]));
     const bl: Block[] = (sch.data || [])
@@ -113,7 +114,7 @@ const Presenca = () => {
   const save = async () => {
     setSaving(true);
     try {
-      const { data: cs } = await supabase.from("class_subjects").select("id,subject_id").eq("class_id", classId);
+      const { data: cs } = await activeClassSubjects(classId);
       const map = new Map((cs || []).map((c) => [c.subject_id, c.id]));
       for (const sid of new Set(blocks.map((b) => b.subject_id))) {
         if (!map.has(sid)) {

@@ -1,3 +1,4 @@
+import { activeClassSubjects } from "@/lib/semester";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,7 +38,7 @@ const Horarios = () => {
   useEffect(() => {
     if (!classId) return;
     (async () => {
-      const { data: links } = await supabase.from("class_subjects").select("subject_id").eq("class_id", classId);
+      const { data: links } = await activeClassSubjects(classId);
       const ids = (links || []).map((l) => l.subject_id);
       const { data: subs } = ids.length
         ? await supabase.from("subjects").select("id, name, code").in("id", ids).order("name")

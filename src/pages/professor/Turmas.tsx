@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Users, BookOpen } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Users, BookOpen, Lock, CheckCircle2, XCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { checkSemester, closeSemester, subjectReady, type SubjectCheck } from "@/lib/semester";
 
 interface Class {
   id: string;
@@ -56,11 +57,15 @@ const Turmas = () => {
   const [newStudents, setNewStudents] = useState<string[]>([]);
   const [studentSearch, setStudentSearch] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [classSubjects, setClassSubjects] = useState<{ id: string; class_id: string; subject_id: string }[]>([]);
+  const [classSubjects, setClassSubjects] = useState<{ id: string; class_id: string; subject_id: string; semester_number: number | null }[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const [subjectsClass, setSubjectsClass] = useState<Class | null>(null);
   const [editSubjects, setEditSubjects] = useState<string[]>([]);
+  const [closeClass, setCloseClass] = useState<Class | null>(null);
+  const [checks, setChecks] = useState<SubjectCheck[] | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [semStatus, setSemStatus] = useState<{ class_id: string; semester_number: number; status: string }[]>([]);
   const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
@@ -87,7 +92,7 @@ const Turmas = () => {
     }
     const [{ data: subs }, { data: cs }, { data: crs }, { data: crsSubs }, { data: roles }] = await Promise.all([
       supabase.from("subjects").select("id, name, code").order("name"),
-      supabase.from("class_subjects").select("id, class_id, subject_id"),
+      supabase.from("class_subjects").select("id, class_id, subject_id, semester_number"),
       supabase.from("courses").select("id, name, code, total_semesters").order("name"),
       supabase.from("course_subjects").select("course_id, semester_number, subject_id"),
       supabase.from("user_roles").select("user_id").eq("role", "aluno"),
@@ -99,6 +104,8 @@ const Turmas = () => {
       const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids).order("full_name");
       setAllStudents(profs || []);
     }
+    const { data: sems } = await supabase.from("class_semesters").select("class_id, semester_number, status");
+    setSemStatus(sems || []);
     setSubjects(subs || []);
     setClassSubjects(cs || []);
     setLoading(false);
@@ -117,12 +124,21 @@ const Turmas = () => {
     const { data: created, error } = await supabase.from("classes").insert({
       name: formData.name,
       year: formData.year,
-      semester: formData.semester,
+      semester: 1,
       course_id: formData.course_id,
       course: course?.name ?? null,
       city: formData.city || null,
       teacher_id: user?.id,
     }).select("id").single();
+
+    if (!error && created && course) {
+      const { error: semErr } = await supabase.from("class_semesters").insert(
+        Array.from({ length: course.total_semesters }, (_, i) => ({
+          class_id: created.id, semester_number: i + 1, status: i === 0 ? "ativo" : "pendente",
+        }))
+      );
+      if (semErr) toast({ title: "Erro ao criar semestres", description: semErr.message, variant: "destructive" });
+    }
 
     if (!error && created && newStudents.length > 0) {
       const { error: enErr } = await supabase.from("enrollments").insert(
@@ -133,7 +149,7 @@ const Turmas = () => {
 
     if (!error && created && selectedSubjects.length > 0) {
       const { error: csError } = await supabase.from("class_subjects").insert(
-        selectedSubjects.map((sid) => ({ class_id: created.id, subject_id: sid, teacher_id: user?.id }))
+        selectedSubjects.map((sid) => ({ class_id: created.id, subject_id: sid, teacher_id: user?.id, semester_number: 1 }))
       );
       if (csError) toast({ title: "Erro ao vincular matérias", description: csError.message, variant: "destructive" });
     }
@@ -170,19 +186,19 @@ const Turmas = () => {
 
   const openSubjects = (c: Class) => {
     setSubjectsClass(c);
-    setEditSubjects(classSubjects.filter((cs) => cs.class_id === c.id).map((cs) => cs.subject_id));
+    setEditSubjects(classSubjects.filter((cs) => cs.class_id === c.id && (cs.semester_number == null || cs.semester_number === c.semester)).map((cs) => cs.subject_id));
     setSubjectsOpen(true);
   };
 
   const saveSubjects = async () => {
     if (!subjectsClass) return;
-    const current = classSubjects.filter((cs) => cs.class_id === subjectsClass.id);
+    const current = classSubjects.filter((cs) => cs.class_id === subjectsClass.id && (cs.semester_number == null || cs.semester_number === subjectsClass.semester));
     const toAdd = editSubjects.filter((sid) => !current.some((c) => c.subject_id === sid));
     const toRemove = current.filter((c) => !editSubjects.includes(c.subject_id));
     const { data: { user } } = await supabase.auth.getUser();
     if (toAdd.length) {
       const { error } = await supabase.from("class_subjects").insert(
-        toAdd.map((sid) => ({ class_id: subjectsClass.id, subject_id: sid, teacher_id: user?.id }))
+        toAdd.map((sid) => ({ class_id: subjectsClass.id, subject_id: sid, teacher_id: user?.id, semester_number: subjectsClass.semester }))
       );
       if (error) return toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
     }
@@ -193,6 +209,29 @@ const Turmas = () => {
     toast({ title: "Matérias atualizadas" });
     setSubjectsOpen(false);
     fetchClasses();
+  };
+
+  const openClose = async (c: Class) => {
+    setCloseClass(c);
+    setChecks(null);
+    setChecks(await checkSemester(c.id, c.semester));
+  };
+
+  const confirmClose = async () => {
+    if (!closeClass) return;
+    setClosing(true);
+    try {
+      const total = courses.find((c) => c.id === closeClass.course_id)?.total_semesters
+        ?? semStatus.filter((x) => x.class_id === closeClass.id).length;
+      const r = await closeSemester(closeClass.id, closeClass.course_id, closeClass.semester, total);
+      toast({ title: r.finished ? "Curso concluído pela turma!" : `${closeClass.semester}º semestre fechado. ${closeClass.semester + 1}º semestre ativo.` });
+      setCloseClass(null);
+      fetchClasses();
+    } catch (e) {
+      toast({ title: "Erro ao fechar semestre", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setClosing(false);
+    }
   };
 
   const toggle = (list: string[], id: string) =>
@@ -416,14 +455,9 @@ const Turmas = () => {
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <Label>Semestre</Label>
-                      <Select value={formData.semester.toString()} onValueChange={(v) => pickCourse(formData.course_id, parseInt(v))} disabled={!selectedCourse}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: selectedCourse?.total_semesters || 1 }, (_, i) => i + 1).map((n) => (
-                            <SelectItem key={n} value={String(n)}>{n}º Semestre</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {selectedCourse ? `Começa no 1º de ${selectedCourse.total_semesters}` : "Escolha o curso"}
+                      </p>
                     </div>
                     <div>
                       <Label htmlFor="city">Cidade</Label>
@@ -489,11 +523,28 @@ const Turmas = () => {
                     <TableCell>{courses.find((c) => c.id === classItem.course_id)?.code || classItem.course || "-"}</TableCell>
                     <TableCell>{classItem.city || "-"}</TableCell>
                     <TableCell>{classItem.year}</TableCell>
-                    <TableCell>{classItem.semester}º Semestre</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const rows = semStatus.filter((x) => x.class_id === classItem.id);
+                        const total = courses.find((c) => c.id === classItem.course_id)?.total_semesters ?? rows.length;
+                        const done = rows.length > 0 && rows.every((x) => x.status === "concluido");
+                        if (done) return <Badge>Concluída</Badge>;
+                        return (
+                          <div className="flex flex-col items-start gap-1">
+                            <span>{classItem.semester}º de {total || "?"}</span>
+                            {rows.length > 0 && (
+                              <Button variant="outline" size="sm" onClick={() => openClose(classItem)}>
+                                <Lock className="mr-1 h-3 w-3" /> Fechar semestre
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-1">
                         {classSubjects
-                          .filter((cs) => cs.class_id === classItem.id)
+                          .filter((cs) => cs.class_id === classItem.id && (cs.semester_number == null || cs.semester_number === classItem.semester))
                           .map((cs) => (
                             <Badge key={cs.id} variant="secondary">
                               {subjects.find((s) => s.id === cs.subject_id)?.code}
@@ -604,6 +655,43 @@ const Turmas = () => {
                 </div>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={!!closeClass} onOpenChange={(o) => !o && setCloseClass(null)}>
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Fechar {closeClass?.semester}º semestre — {closeClass?.name}</DialogTitle>
+              <DialogDescription>Só é possível fechar com a carga horária completa e todas as notas lançadas.</DialogDescription>
+            </DialogHeader>
+            {!checks ? (
+              <p className="text-sm text-muted-foreground">Verificando...</p>
+            ) : checks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma matéria vinculada a este semestre.</p>
+            ) : (
+              <div className="space-y-2">
+                {checks.map((c) => (
+                  <div key={c.code} className="border rounded p-2 text-sm">
+                    <div className="flex items-center gap-2 font-medium">
+                      {subjectReady(c) ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                      {c.code} <span className="text-muted-foreground font-normal">{c.name}</span>
+                    </div>
+                    <p className="text-muted-foreground">
+                      Aulas: {c.taught} de {c.required ?? "carga horária não definida"}
+                    </p>
+                    {c.missingGrades.length > 0 && (
+                      <p className="text-destructive">Sem nota: {c.missingGrades.join(", ")}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button
+              className="w-full"
+              disabled={!checks || checks.length === 0 || !checks.every(subjectReady) || closing}
+              onClick={confirmClose}
+            >
+              {closing ? "Fechando..." : "Fechar semestre"}
+            </Button>
           </DialogContent>
         </Dialog>
       </main>
