@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ClassSubject {
@@ -164,17 +164,23 @@ const MinhasNotas = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Minhas Notas</h1>
-            <p className="text-sm text-muted-foreground">
-              Suas notas por turma e matéria
-            </p>
-          </div>
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
+        <div className="container mx-auto px-4 py-4">
+          <Button variant="ghost" onClick={() => navigate("/aluno")} className="mb-2">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
           </Button>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Minhas Notas</h1>
+              <p className="text-sm text-muted-foreground">
+                Suas notas por turma e matéria
+              </p>
+            </div>
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </Button>
+          </div>
         </div>
       </header>
 
