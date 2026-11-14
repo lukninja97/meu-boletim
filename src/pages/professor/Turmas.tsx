@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Users, BookOpen, Lock, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Users, BookOpen, Lock, CheckCircle2, XCircle, Pencil } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -66,6 +66,9 @@ const Turmas = () => {
   const [checks, setChecks] = useState<SubjectCheck[] | null>(null);
   const [closing, setClosing] = useState(false);
   const [semStatus, setSemStatus] = useState<{ class_id: string; semester_number: number; status: string }[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editClass, setEditClass] = useState<Class | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", year: new Date().getFullYear(), city: "" });
   const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
@@ -208,6 +211,38 @@ const Turmas = () => {
     }
     toast({ title: "Matérias atualizadas" });
     setSubjectsOpen(false);
+    fetchClasses();
+  };
+
+  const openEdit = (c: Class) => {
+    setEditClass(c);
+    setEditForm({ name: c.name, year: c.year, city: c.city ?? "" });
+    setEditOpen(true);
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editClass) return;
+    if (!editForm.name.trim()) {
+      toast({ title: "Informe o nome da turma", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase
+      .from("classes")
+      .update({
+        name: editForm.name.trim(),
+        year: editForm.year,
+        city: editForm.city.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", editClass.id);
+
+    if (error) {
+      toast({ title: "Erro ao salvar turma", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Turma atualizada" });
+    setEditOpen(false);
     fetchClasses();
   };
 
@@ -566,7 +601,15 @@ const Turmas = () => {
                         Gerenciar
                       </Button>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Editar turma"
+                        onClick={() => openEdit(classItem)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -657,6 +700,39 @@ const Turmas = () => {
             </div>
           </DialogContent>
         </Dialog>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Turma</DialogTitle>
+              <DialogDescription>Ajuste os dados desta turma</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={saveEdit} className="space-y-4">
+              <div>
+                <Label>Curso</Label>
+                <p className="text-sm mt-1">
+                  {courses.find((c) => c.id === editClass?.course_id)?.name || editClass?.course || "-"}
+                  <span className="text-muted-foreground"> ({editClass?.semester}º semestre)</span>
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="edit-city">Cidade</Label>
+                  <Input id="edit-city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} placeholder="Ex: Guarulhos" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-year">Ano</Label>
+                  <Input id="edit-year" type="number" value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: parseInt(e.target.value) })} required />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-name">Nome da Turma</Label>
+                <Input id="edit-name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+              </div>
+              <Button type="submit" className="w-full">Salvar Alterações</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={!!closeClass} onOpenChange={(o) => !o && setCloseClass(null)}>
           <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
