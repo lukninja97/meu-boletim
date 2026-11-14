@@ -103,11 +103,47 @@ export type Database = {
           },
         ]
       }
+      class_semesters: {
+        Row: {
+          class_id: string
+          closed_at: string | null
+          created_at: string | null
+          id: string
+          semester_number: number
+          status: string
+        }
+        Insert: {
+          class_id: string
+          closed_at?: string | null
+          created_at?: string | null
+          id?: string
+          semester_number: number
+          status?: string
+        }
+        Update: {
+          class_id?: string
+          closed_at?: string | null
+          created_at?: string | null
+          id?: string
+          semester_number?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_semesters_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_subjects: {
         Row: {
           class_id: string
           created_at: string | null
           id: string
+          semester_number: number | null
           subject_id: string
           teacher_id: string | null
         }
@@ -115,6 +151,7 @@ export type Database = {
           class_id: string
           created_at?: string | null
           id?: string
+          semester_number?: number | null
           subject_id: string
           teacher_id?: string | null
         }
@@ -122,6 +159,7 @@ export type Database = {
           class_id?: string
           created_at?: string | null
           id?: string
+          semester_number?: number | null
           subject_id?: string
           teacher_id?: string | null
         }
