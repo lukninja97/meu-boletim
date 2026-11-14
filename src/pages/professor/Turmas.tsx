@@ -700,6 +700,39 @@ const Turmas = () => {
             </div>
           </DialogContent>
         </Dialog>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Turma</DialogTitle>
+              <DialogDescription>Ajuste os dados desta turma</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={saveEdit} className="space-y-4">
+              <div>
+                <Label>Curso</Label>
+                <p className="text-sm mt-1">
+                  {courses.find((c) => c.id === editClass?.course_id)?.name || editClass?.course || "-"}
+                  <span className="text-muted-foreground"> ({editClass?.semester}º semestre)</span>
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="edit-city">Cidade</Label>
+                  <Input id="edit-city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} placeholder="Ex: Guarulhos" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-year">Ano</Label>
+                  <Input id="edit-year" type="number" value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: parseInt(e.target.value) })} required />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-name">Nome da Turma</Label>
+                <Input id="edit-name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+              </div>
+              <Button type="submit" className="w-full">Salvar Alterações</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={!!closeClass} onOpenChange={(o) => !o && setCloseClass(null)}>
           <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
