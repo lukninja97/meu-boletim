@@ -71,6 +71,13 @@
       "when": 1794779012969,
       "tag": "0009_add_coordenador_role",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794779027074,
+      "tag": "0010_coordenador_policies",
+      "breakpoints": true
     }
   ]
 }
