@@ -57,8 +57,12 @@ const Turmas = () => {
   const [newStudents, setNewStudents] = useState<string[]>([]);
   const [studentSearch, setStudentSearch] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [classSubjects, setClassSubjects] = useState<{ id: string; class_id: string; subject_id: string; semester_number: number | null }[]>([]);
+  const [classSubjects, setClassSubjects] = useState<{ id: string; class_id: string; subject_id: string; semester_number: number | null; teacher_id: string | null }[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [teachers, setTeachers] = useState<Student[]>([]);
+  const [me, setMe] = useState<string>("");
+  const [subjectTeachers, setSubjectTeachers] = useState<Record<string, string>>({});
+  const [editTeachers, setEditTeachers] = useState<Record<string, string>>({});
   const [subjectsOpen, setSubjectsOpen] = useState(false);
   const [subjectsClass, setSubjectsClass] = useState<Class | null>(null);
   const [editSubjects, setEditSubjects] = useState<string[]>([]);
@@ -95,11 +99,19 @@ const Turmas = () => {
     }
     const [{ data: subs }, { data: cs }, { data: crs }, { data: crsSubs }, { data: roles }] = await Promise.all([
       supabase.from("subjects").select("id, name, code").order("name"),
-      supabase.from("class_subjects").select("id, class_id, subject_id, semester_number"),
+      supabase.from("class_subjects").select("id, class_id, subject_id, semester_number, teacher_id"),
       supabase.from("courses").select("id, name, code, total_semesters").order("name"),
       supabase.from("course_subjects").select("course_id, semester_number, subject_id"),
       supabase.from("user_roles").select("user_id").eq("role", "aluno"),
     ]);
+    const { data: { user: cu } } = await supabase.auth.getUser();
+    setMe(cu?.id ?? "");
+    const { data: profRoles } = await supabase.from("user_roles").select("user_id").eq("role", "professor");
+    const pids = (profRoles || []).map((x) => x.user_id);
+    if (pids.length) {
+      const { data: tp } = await supabase.from("profiles").select("id, full_name").in("id", pids).order("full_name");
+      setTeachers(tp || []);
+    }
     setCourses(crs || []);
     setCourseSubjects(crsSubs || []);
     const ids = (roles || []).map((x) => x.user_id);
@@ -152,7 +164,7 @@ const Turmas = () => {
 
     if (!error && created && selectedSubjects.length > 0) {
       const { error: csError } = await supabase.from("class_subjects").insert(
-        selectedSubjects.map((sid) => ({ class_id: created.id, subject_id: sid, teacher_id: user?.id, semester_number: 1 }))
+        selectedSubjects.map((sid) => ({ class_id: created.id, subject_id: sid, teacher_id: subjectTeachers[sid] || user?.id, semester_number: 1 }))
       );
       if (csError) toast({ title: "Erro ao vincular matérias", description: csError.message, variant: "destructive" });
     }
@@ -170,6 +182,7 @@ const Turmas = () => {
       setOpen(false);
       setFormData({ name: "", year: new Date().getFullYear(), semester: 1, course_id: "", city: "" });
       setSelectedSubjects([]);
+      setSubjectTeachers({});
       setNewStudents([]);
       setStudentSearch("");
       fetchClasses();
@@ -179,9 +192,9 @@ const Turmas = () => {
   const selectedCourse = courses.find((c) => c.id === formData.course_id);
   const pickCourse = (courseId: string, semester: number) => {
     setFormData((f) => ({ ...f, course_id: courseId, semester }));
-    setSelectedSubjects(
-      courseSubjects.filter((cs) => cs.course_id === courseId && cs.semester_number === semester).map((cs) => cs.subject_id)
-    );
+    const ids = courseSubjects.filter((cs) => cs.course_id === courseId && cs.semester_number === semester).map((cs) => cs.subject_id);
+    setSelectedSubjects(ids);
+    setSubjectTeachers(Object.fromEntries(ids.map((id) => [id, me])));
   };
   const filteredStudents = allStudents.filter((st) =>
     st.full_name.toLowerCase().includes(studentSearch.toLowerCase())
@@ -189,7 +202,9 @@ const Turmas = () => {
 
   const openSubjects = (c: Class) => {
     setSubjectsClass(c);
-    setEditSubjects(classSubjects.filter((cs) => cs.class_id === c.id && (cs.semester_number == null || cs.semester_number === c.semester)).map((cs) => cs.subject_id));
+    const cur = classSubjects.filter((cs) => cs.class_id === c.id && (cs.semester_number == null || cs.semester_number === c.semester));
+    setEditSubjects(cur.map((cs) => cs.subject_id));
+    setEditTeachers(Object.fromEntries(cur.map((cs) => [cs.subject_id, cs.teacher_id ?? ""])));
     setSubjectsOpen(true);
   };
 
@@ -201,9 +216,13 @@ const Turmas = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (toAdd.length) {
       const { error } = await supabase.from("class_subjects").insert(
-        toAdd.map((sid) => ({ class_id: subjectsClass.id, subject_id: sid, teacher_id: user?.id, semester_number: subjectsClass.semester }))
+        toAdd.map((sid) => ({ class_id: subjectsClass.id, subject_id: sid, teacher_id: editTeachers[sid] || user?.id, semester_number: subjectsClass.semester }))
       );
       if (error) return toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+    }
+    for (const c of current.filter((c) => editSubjects.includes(c.subject_id) && (editTeachers[c.subject_id] || null) !== c.teacher_id)) {
+      const { error } = await supabase.from("class_subjects").update({ teacher_id: editTeachers[c.subject_id] || null }).eq("id", c.id);
+      if (error) return toast({ title: "Erro ao salvar professor", description: error.message, variant: "destructive" });
     }
     if (toRemove.length) {
       const { error } = await supabase.from("class_subjects").delete().in("id", toRemove.map((r) => r.id));
@@ -268,6 +287,16 @@ const Turmas = () => {
       setClosing(false);
     }
   };
+
+  const teacherPicker = (value: string, onChange: (v: string) => void) => (
+    <Select value={value || "none"} onValueChange={(v) => onChange(v === "none" ? "" : v)}>
+      <SelectTrigger className="h-8 w-48"><SelectValue placeholder="Professor" /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Sem professor</SelectItem>
+        {teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
 
   const toggle = (list: string[], id: string) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -513,9 +542,15 @@ const Turmas = () => {
                       <div className="flex flex-wrap gap-1 mt-1">
                         {selectedSubjects.length === 0 ? (
                           <span className="text-sm text-muted-foreground">Nenhuma matéria neste semestre do curso</span>
-                        ) : selectedSubjects.map((sid) => (
-                          <Badge key={sid} variant="secondary">{subjects.find((x) => x.id === sid)?.code}</Badge>
-                        ))}
+                        ) : selectedSubjects.map((sid) => {
+                          const sub = subjects.find((x) => x.id === sid);
+                          return (
+                            <div key={sid} className="flex w-full items-center justify-between gap-2 border rounded p-2">
+                              <span className="text-sm"><Badge variant="secondary" className="mr-2">{sub?.code}</Badge>{sub?.name}</span>
+                              {teacherPicker(subjectTeachers[sid] ?? "", (v) => setSubjectTeachers({ ...subjectTeachers, [sid]: v }))}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -639,6 +674,17 @@ const Turmas = () => {
               <DialogDescription>Selecione as matérias desta turma</DialogDescription>
             </DialogHeader>
             {subjectList(editSubjects, (id) => setEditSubjects(toggle(editSubjects, id)))}
+            {editSubjects.length > 0 && (
+              <div className="space-y-2">
+                <Label>Professor de cada matéria</Label>
+                {editSubjects.map((sid) => (
+                  <div key={sid} className="flex items-center justify-between gap-2">
+                    <span className="text-sm">{subjects.find((x) => x.id === sid)?.code}</span>
+                    {teacherPicker(editTeachers[sid] ?? "", (v) => setEditTeachers({ ...editTeachers, [sid]: v }))}
+                  </div>
+                ))}
+              </div>
+            )}
             <Button onClick={saveSubjects} className="w-full">Salvar</Button>
           </DialogContent>
         </Dialog>
