@@ -64,6 +64,13 @@
       "when": 1794684604816,
       "tag": "0008_class_semesters",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794779012969,
+      "tag": "0009_add_coordenador_role",
+      "breakpoints": true
     }
   ]
 }
