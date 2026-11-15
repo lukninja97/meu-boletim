@@ -5,6 +5,7 @@ import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, LogOut, BookOpen, Users, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
+import { homeForUser } from "@/lib/roles";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Dashboard = () => {
@@ -28,23 +29,8 @@ const Dashboard = () => {
       if (!session) {
         navigate("/auth");
       } else {
-        // Verificar role e redirecionar se tiver apenas uma
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id);
-
-        if (roles && roles.length > 0) {
-          const isProfessor = roles.some(r => r.role === "professor");
-          const isAluno = roles.some(r => r.role === "aluno");
-
-          // Redirecionar apenas se tiver apenas uma role
-          if (isProfessor && !isAluno) {
-            navigate("/professor");
-          } else if (isAluno && !isProfessor) {
-            navigate("/aluno");
-          }
-        }
+        const home = await homeForUser(session.user.id);
+        if (home !== "/dashboard") navigate(home);
       }
       setLoading(false);
     });

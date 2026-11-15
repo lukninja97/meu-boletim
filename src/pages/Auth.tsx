@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import { homeForUser } from "@/lib/roles";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,26 +20,7 @@ const Auth = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        // Verificar role do usuário e redirecionar para área apropriada
-        const { data: roles } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", session.user.id);
-
-        if (roles && roles.length > 0) {
-          const isProfessor = roles.some(r => r.role === "professor");
-          const isAluno = roles.some(r => r.role === "aluno");
-
-          if (isProfessor && !isAluno) {
-            navigate("/professor");
-          } else if (isAluno && !isProfessor) {
-            navigate("/aluno");
-          } else {
-            navigate("/dashboard");
-          }
-        } else {
-          navigate("/dashboard");
-        }
+        navigate(await homeForUser(session.user.id));
       }
     });
 
@@ -86,26 +68,7 @@ const Auth = () => {
 
       if (error) throw error;
 
-      // Verificar role do usuário e redirecionar
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id);
-
-      if (roles && roles.length > 0) {
-        const isProfessor = roles.some(r => r.role === "professor");
-        const isAluno = roles.some(r => r.role === "aluno");
-
-        if (isProfessor && !isAluno) {
-          navigate("/professor");
-        } else if (isAluno && !isProfessor) {
-          navigate("/aluno");
-        } else {
-          navigate("/dashboard");
-        }
-      } else {
-        navigate("/dashboard");
-      }
+      navigate(await homeForUser(data.user.id));
 
       toast.success("Login realizado com sucesso!");
     } catch (error: any) {

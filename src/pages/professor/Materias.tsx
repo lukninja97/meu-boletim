@@ -129,7 +129,7 @@ const Materias = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/professor")} className="mb-2">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-2">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Button>
