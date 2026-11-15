@@ -1,0 +1,15 @@
+DROP POLICY IF EXISTS "Professors manage courses" ON public.courses;
+DROP POLICY IF EXISTS "Professors manage course subjects" ON public.course_subjects;
+DROP POLICY IF EXISTS "Professors can manage subjects" ON public.subjects;
+CREATE POLICY "Coordinators manage courses" ON public.courses FOR ALL TO authenticated USING (public.has_role(auth.uid(),'coordenador')) WITH CHECK (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators manage course subjects" ON public.course_subjects FOR ALL TO authenticated USING (public.has_role(auth.uid(),'coordenador')) WITH CHECK (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators manage subjects" ON public.subjects FOR ALL TO authenticated USING (public.has_role(auth.uid(),'coordenador')) WITH CHECK (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view classes" ON public.classes FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view class subjects" ON public.class_subjects FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view class semesters" ON public.class_semesters FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view schedules" ON public.class_schedules FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view enrollments" ON public.enrollments FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view grades" ON public.grades FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view attendance" ON public.attendance FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view profiles" ON public.profiles FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
+CREATE POLICY "Coordinators view roles" ON public.user_roles FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'coordenador'));
