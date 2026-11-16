@@ -65,8 +65,22 @@ Deno.serve(async (req) => {
       app_metadata: { must_change_password: true },
     })
     if (error || !created.user) {
-      const msg = error?.message?.includes('already') ? 'Este e-mail já está cadastrado' : (error?.message ?? 'Falha ao criar')
-      return json({ error: msg }, 400)
+      if (!error?.message?.includes('already')) return json({ error: error?.message ?? 'Falha ao criar' }, 400)
+      // Existing account (e.g. self sign-up): reuse it if it has no role yet
+      const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 })
+      const existing = list?.users.find((u) => u.email?.toLowerCase() === email.toLowerCase())
+      if (!existing) return json({ error: 'Este e-mail já está cadastrado' }, 400)
+      const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', existing.id)
+      if ((roles ?? []).length > 0) return json({ error: 'Este e-mail já está cadastrado com outro perfil' }, 400)
+      const { error: upErr } = await admin.auth.admin.updateUserById(existing.id, {
+        password, email_confirm: true,
+        user_metadata: { ...existing.user_metadata, full_name },
+        app_metadata: { ...existing.app_metadata, must_change_password: true },
+      })
+      if (upErr) return json({ error: upErr.message }, 400)
+      const { error: rErr } = await admin.from('user_roles').insert({ user_id: existing.id, role })
+      if (rErr) return json({ error: 'Falha ao atribuir perfil' }, 500)
+      return json({ success: true, id: existing.id })
     }
     const { error: roleErr } = await admin.from('user_roles').insert({ user_id: created.user.id, role })
     if (roleErr) {
