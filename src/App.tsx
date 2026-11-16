@@ -16,6 +16,8 @@ import Notas from "./pages/professor/Notas";
 import Presenca from "./pages/professor/Presenca";
 import Horarios from "./pages/professor/Horarios";
 import CoordenadorDashboard from "./pages/coordenador/CoordenadorDashboard";
+import Professores from "./pages/coordenador/Professores";
+import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 import AlunoDashboard from "./pages/aluno/AlunoDashboard";
 import MinhasTurmas from "./pages/aluno/MinhasTurmas";
 import MinhasNotas from "./pages/aluno/MinhasNotas";
@@ -34,6 +36,8 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/coordenador" element={<CoordenadorDashboard />} />
+          <Route path="/coordenador/professores" element={<Professores />} />
+          <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />
           <Route path="/professor" element={<ProfessorDashboard />} />
           <Route path="/professor/alunos" element={<Alunos />} />
           <Route path="/professor/turmas" element={<Turmas />} />
