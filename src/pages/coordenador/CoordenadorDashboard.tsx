@@ -7,6 +7,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { BookOpen, Users, GraduationCap, ClipboardList, LogOut, UserPlus, Clock, Award } from "lucide-react";
 
 const items = [
+  { path: "/coordenador/professores", title: "Professores", desc: "Cadastre professores com senha de primeiro acesso", icon: UserPlus },
   { path: "/professor/cursos", title: "Cursos", desc: "Cadastre cursos, semestres e grade", icon: GraduationCap },
   { path: "/professor/materias", title: "Matérias", desc: "Cadastre matérias e carga horária", icon: BookOpen },
   { path: "/professor/turmas", title: "Turmas", desc: "Visualizar turmas", icon: Users },
