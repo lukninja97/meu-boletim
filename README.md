@@ -1,73 +1,66 @@
-# Welcome to your Lovable project
+# meu-boletim
 
-## Project info
+### **[Persona]**
+Aja como um engenheiro de software sênior e arquiteto de soluções, especialista em desenvolvimento de aplicações web educacionais.
 
-**URL**: https://lovable.dev/projects/637a7972-4884-4021-92c8-786bdbd64a35
+### **[Contexto]**
+O objetivo é criar uma aplicação web que funcione como um boletim online para uma instituição de ensino. A plataforma precisa atender a dois perfis principais de usuários com diferentes permissões e funcionalidades:
+1.  **Professores:** Devem ser capazes de cadastrar e gerenciar turmas, alunos e matérias. A principal função deles é lançar as notas e o progresso dos alunos.
+2.  **Alunos:** Devem ter um portal de acesso para visualizar suas próprias notas, o andamento em cada matéria e o histórico do curso.
 
-## How can I edit this code?
+### **[Tarefa]**
+Sua tarefa é detalhar um plano de projeto abrangente para a criação desta aplicação.
 
-There are several ways of editing your application.
+### **[Formato]**
+Apresente a resposta dividida nas seguintes seções:
+1.  **Funcionalidades Detalhadas:** Crie uma lista (bullet points) das funcionalidades para o perfil de "Professor" e outra para o perfil de "Aluno".
+2.  **Sugestão de Tecnologias (Tech Stack):** Recomende tecnologias para o Frontend, Backend e Banco de Dados.
+3.  **Estrutura do Banco de Dados:** Descreva as principais tabelas necessárias (ex: `Usuarios`, `Turmas`, `Alunos`, `Materias`, `Notas`) e como elas se relacionariam.
+4.  **Próximos Passos:** Liste as etapas recomendadas para iniciar o desenvolvimento do projeto.
 
-**Use Lovable**
+### **[Restrições]**
+* Foque em tecnologias modernas, escaláveis e de código aberto.
+* A interface do usuário (UI) deve ser descrita como simples e intuitiva para ambos os perfis.
+* A segurança dos dados é crucial; mencione a necessidade de autenticação e controle de acesso.### **[Persona]**
+Aja como um engenheiro de software sênior e arquiteto de soluções, especialista em desenvolvimento de aplicações web educacionais.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/637a7972-4884-4021-92c8-786bdbd64a35) and start prompting.
+### **[Contexto]**
+O objetivo é criar uma aplicação web que funcione como um boletim online para uma instituição de ensino. A plataforma precisa atender a dois perfis principais de usuários com diferentes permissões e funcionalidades:
+1.  **Professores:** Devem ser capazes de cadastrar e gerenciar turmas, alunos e matérias. A principal função deles é lançar as notas e o progresso dos alunos.
+2.  **Alunos:** Devem ter um portal de acesso para visualizar suas próprias notas, o andamento em cada matéria e o histórico do curso.
 
-Changes made via Lovable will be committed automatically to this repo.
+### **[Tarefa]**
+Sua tarefa é detalhar um plano de projeto abrangente para a criação desta aplicação.
 
-**Use your preferred IDE**
+### **[Formato]**
+Apresente a resposta dividida nas seguintes seções:
+1.  **Funcionalidades Detalhadas:** Crie uma lista (bullet points) das funcionalidades para o perfil de "Professor" e outra para o perfil de "Aluno".
+2.  **Sugestão de Tecnologias (Tech Stack):** Recomende tecnologias para o Frontend, Backend e Banco de Dados.
+3.  **Estrutura do Banco de Dados:** Descreva as principais tabelas necessárias (ex: `Usuarios`, `Turmas`, `Alunos`, `Materias`, `Notas`) e como elas se relacionariam.
+4.  **Próximos Passos:** Liste as etapas recomendadas para iniciar o desenvolvimento do projeto.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### **[Restrições]**
+* Foque em tecnologias modernas, escaláveis e de código aberto.
+* A interface do usuário (UI) deve ser descrita como simples e intuitiva para ambos os perfis.
+* A segurança dos dados é crucial; mencione a necessidade de autenticação e controle de acesso.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+This project was built with [Lovable](https://lovable.dev).
 
-Follow these steps:
+## Build with Lovable
+
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/637a7972-4884-4021-92c8-786bdbd64a35).
+
+- **Ship faster**: describe what you want to build and Lovable handles the code.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+
+## Development
+
+Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
+git clone <this-repository-url>
+cd <repository-name>
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/637a7972-4884-4021-92c8-786bdbd64a35) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
